@@ -2,14 +2,14 @@
 
 | Document control | |
 |---|---|
-| Contract version | 1.0.0 (Milestone 1 baseline) |
-| Contract deadline | Friday 20 November 2026, 18:00 ICT (Week N-2 before the Milestone 1 submission, TW-S06) |
-| Status | Draft for squad sign-off. Becomes "Agreed" when the sign-off table in Section 7 is complete. |
-| Squad | `[SQUAD NAME]` |
+| Contract version | 1.0.0 |
+| Contract deadline | Friday 20 November 2026, 18:00 ICT |
+| Status | Draft |
+| Squad | `5` |
 | Sub-region and countries | `[SUB-REGION]`; `[COUNTRY 1]`, `[COUNTRY 2]` (examples in this contract use Vietnam (VN) and Thailand (TH)) |
-| Provider Portal team | `[FULL NAMES]` |
-| Customer Portal team | `[FULL NAMES]` |
-| Repository | `[GITHUB ORGANIZATION]/roomscanner-api-contract` (separate repository in the squad organization, TW-S02) |
+| Provider Portal team | `Team 9` |
+| Customer Portal team | `Team 10` |
+| Repository | `https://github.com/System-Architecture-Design-Squad-5/roomscanner-api-contract` |
 
 This repository is the single source of truth for every interaction between the two RoomScanner subsystems:
 
