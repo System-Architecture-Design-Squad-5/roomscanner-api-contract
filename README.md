@@ -4,7 +4,7 @@
 |---|---|
 | Contract version | 1.0.0 |
 | Contract deadline | Friday 20 November 2026, 18:00 ICT |
-| Status | Draft |
+| Status | Agreed (CP Reviewed) |
 | Squad | `5` |
 | Sub-region and countries | `[SUB-REGION]`; `[COUNTRY 1]`, `[COUNTRY 2]` (examples in this contract use Vietnam (VN) and Thailand (TH)) |
 | Provider Portal team | `Team 9` |
@@ -13,8 +13,8 @@
 
 This repository is the single source of truth for every interaction between the two RoomScanner subsystems:
 
-- **Provider Portal (PP)**: the authoritative owner of providers, branches, rooms, availability, discount policies, reservations/bookings and beneficiary-side payment outcomes.
-- **Customer Portal (CP)**: the authoritative owner of customers, Premium membership, regional events and favorites, reviews and rating statistics, and payer-side payment initiation.
+- **Provider Portal (PP)** (*Microservices architecture*, `BE-U01`–`BE-U09`): the authoritative owner of providers, branches, rooms, availability, discount policies, reservations/bookings and beneficiary-side payment outcomes.
+- **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01`–`BE-M08`): the authoritative owner of customers, Premium membership, regional events and favorites, reviews and rating statistics, and payer-side payment initiation.
 
 The contract is published in two equivalent forms:
 
@@ -57,8 +57,12 @@ roomscanner-api-contract/
 |   |-- PP-04-booking-status-events.md
 |   |-- PP-05-payment-flows.md
 |   `-- PP-06-regional-event-suggestions.md
-|-- customer-portal/                   services CP PROVIDES to PP (drafted by PP, approved by CP)
-|   `-- CP-services-required-by-PP.md
+|-- customer-portal/                   services CP PROVIDES to PP (confirmed by CP)
+|   |-- CP-services-required-by-PP.md    index of CP partner operations
+|   |-- CP-01-rating-statistics.md       CP-OP-01 GetRatingStatistics
+|   |-- CP-02-customer-membership.md     CP-OP-02 GetCustomerMembership
+|   |-- CP-03-orders-and-booking-events.md  CP-OP-03, CP-OP-04
+|   `-- CP-04-regional-event-favorites.md   CP-OP-05 EventFavoriteChanged
 |-- pms/
 |   `-- PMS-cross-ecosystem-draft.md   to be agreed with the partner squad
 |-- specs/
@@ -136,10 +140,10 @@ roomscanner-api-contract/
 
 Track this contract as a **separate task** in the *Documentation* column (Common Req. Section 4.1), with an assignee, deadline, effort estimate, reviewer and this Definition of Done:
 
-- [ ] All PP-provided operations documented with endpoint, protocol, description, typed fields and example JSON
-- [ ] All CP-provided operations required by PP listed and confirmed by CP
-- [ ] OpenAPI and AsyncAPI files regenerated and validated
-- [ ] Agreed decisions signed off by both teams (`common/03-agreed-decisions.md`)
+- [x] All PP-provided operations documented with endpoint, protocol, description, typed fields and example JSON
+- [x] All CP-provided operations required by PP listed and confirmed by CP
+- [x] OpenAPI and AsyncAPI files regenerated and validated
+- [x] Agreed decisions signed off by both teams (`common/03-agreed-decisions.md`)
 - [ ] Reviewed by at least one CP member and one PP member; feedback addressed and recorded in the PR
 - [ ] Tagged `v1.0.0` before Fri 20 Nov 2026, 18:00
 

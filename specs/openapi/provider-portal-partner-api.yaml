@@ -5,7 +5,7 @@ info:
   title: RoomScanner Provider Portal - Partner API
   version: 1.0.0
   description: |-
-    REST API that the **Provider Portal (PP)** provides to the **Customer Portal (CP)**.
+    REST API that the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`) provides to the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`).
     This file is the machine-readable form of `provider-portal/PP-01` to `PP-06` in the squad API contract; the markdown
     documents remain the source for business rules (`common/03-agreed-decisions.md`).
 
@@ -22,7 +22,7 @@ servers:
 - url: http://localhost:8080/api/v1/partner
   description: Local / Simplex
 - url: https://pp-gateway.{squad}.roomscanner.local/api/v1/partner
-  description: Deployed, through the API Gateway on Machine 4
+  description: Deployed (PP Microservices via PP API Gateway + Service Discovery on Machine 4)
   variables:
     squad:
       default: squad

@@ -255,3 +255,46 @@ Everything in `RoomSummary`, plus:
 | cancelledBy | CancelledBy | yes | |
 | reason | string | no | ≤ 500 characters |
 | cancelledAt | string | yes | |
+
+### CustomerMembership (owned by CP, returned by `CP-OP-02`)
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| customerId | string | yes | CP application user ID |
+| tier | MembershipTier | yes | `STANDARD` or `PREMIUM` |
+| status | MembershipStatus | yes | `ACTIVE`, `EXPIRED`, or `NONE` |
+| validFrom / validUntil | string | no | UTC timestamp; present when `tier = PREMIUM` (active or expired) |
+
+### EventInfo (owned by CP, sent in `CP-OP-05` and echoed in `PP-OP-12`, `PP-OP-13`)
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| eventId | string | yes | CP event UUID |
+| name | string | yes | e.g. `"Hùng Kings' Temple Festival"` |
+| summary | string | yes | ≤ 300 characters, shown in the notification |
+| locationName | string | yes | e.g. `"Hùng Kings' Temple, Viet Tri City, Phu Tho"` |
+| city | string | yes | Case-insensitive city name within the squad's sub-region |
+| country | string | yes | ISO 3166-1 alpha-2 |
+| timeZone | string | yes | IANA time zone |
+| startDate / endDate | string (date) | yes | Local to the event's time zone |
+| searchRoute | string | yes | CP frontend route opening the pre-filtered city search (`CP-EVENT-M03`) |
+
+### EventSuggestion (returned by PP in `PP-OP-12` and `PP-OP-13`)
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| rank | integer | yes | `1` or `2` |
+| providerId | string | yes | |
+| providerName | string | yes | Accommodation provider's company name (`CP-EVENT-M02`) |
+| branchId | string | yes | |
+| name | string | yes | Accommodation (branch) name |
+| type | ProviderCategory | yes | |
+| logoUrl | string | yes | |
+| pricePerNight | Money | yes | Lowest available price for the event dates |
+| overallRating | number | no | Sourced from CP statistics; omitted when `totalReviews = 0` |
+| totalReviews | integer | yes | |
+
+### RatingStatistics, SubcategoryStatistics & PresetOptionStatistics (owned by CP, returned by `CP-OP-01`)
+| Object | Key Fields | Notes |
+|---|---|---|
+| `RatingStatistics` | `providerId`, `asOf`, `totalReviews`, `overall` (`{ average, count, distribution }`), `subcategories[]`, `comments` (`{ items, nextCursor }`) | Calculated on demand by CP's `RatingModule` from the `providerId` shard (`CP-RATING-M03`, `U01`, `U02`). |
+| `SubcategoryStatistics` | `subcategory` (`RatingSubcategory`), `average`, `count`, `distribution` (`"1"`..`"5"`), `presetOptions[]` | One entry per subcategory (`SERVICE`, `FRIENDLINESS`, `ROOM`). |
+| `PresetOptionStatistics` | `optionId`, `starGroup` (`StarGroup`), `label`, `selectedCount`, `denominator`, `percentage` | `denominator` = reviews whose subcategory score falls in `starGroup` (Decision D-11). |
+| `ReviewComment` | `reviewId`, `overallScore` (`1–5`), `text` (≤ 1,000 words), `createdAt`, `updatedAt` | Active (non-archived) written feedback (`CP-RATING-S03`, `S04`). |

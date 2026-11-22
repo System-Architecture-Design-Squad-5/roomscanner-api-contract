@@ -5,6 +5,7 @@ All notable changes to the squad API contract. Versioning follows the rules in `
 ## [1.0.0] - 2026-11-20 (Milestone 1 baseline)
 
 ### Added
+- **CP Contract Offer Review & Sign-Off**: Modularized `customer-portal/` into `CP-01-rating-statistics.md`, `CP-02-customer-membership.md`, `CP-03-orders-and-booking-events.md`, and `CP-04-regional-event-favorites.md` (with `CP-services-required-by-PP.md` as index); documented **CP Modular Monolith (`BE-M01`–`BE-M08`) vs. PP Microservices (`BE-U01`–`BE-U09`)** across `common/`, `provider-portal/PP-01`–`PP-06`, and `tools/generate_specs.py`; regenerated OpenAPI/AsyncAPI specs in `specs/`; updated `common/03-agreed-decisions.md` (`D-01`–`D-17`) to `Agreed` and confirmed CP redundant rating service in `common/04-kafka.md` §5.
 - Common conventions: base URLs, partner client-credentials authentication and scopes, webhook HMAC signatures, error model, cursor pagination, rate limits, timeouts and versioning.
 - Shared types: enumerations and objects (Money in minor units, ProviderSearchResult, RoomSummary/RoomDetail, PriceBreakdown, BookingSummary, payment status objects).
 - Agreed decisions D-01 to D-17, covering SRS conflicts, business rules and SRS errata.

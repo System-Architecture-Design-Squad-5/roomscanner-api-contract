@@ -324,6 +324,8 @@ Response: `{ "items": BookingSummary[], "pageInfo": {...} }`
 An unknown `customerId` is not an error: the response is `200` with an empty `items` array, so customer existence is not disclosed.
 
 > **Shard routing (PP-SEARCH-U01 style):** Reservations are sharded by **`branch country`**, with a secondary index table `customer_booking_index (customerId → bookingId, shardId)` cached in Redis. A list query touches only the shards that hold that customer's bookings.
+>
+> **CP Modular Monolith Integration (`BookingModule` → `RatingModule`):** When serving `GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST`, CP's `BookingModule` fetches the customer's bookings via `PP-OP-08` and joins them **in-process** with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`) to classify bookings into the 3 UI groups (`CP-BOOK-S02(b)`, Decision D-09).
 
 ---
 

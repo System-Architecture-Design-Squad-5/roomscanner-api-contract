@@ -2,10 +2,10 @@
 # change the generator and regenerate rather than editing this file by hand.
 asyncapi: 3.0.0
 info:
-  title: RoomScanner Squad - Kafka Integration (Provider Portal view)
+  title: RoomScanner Squad - Kafka Integration (PP Microservices <-> CP Modular Monolith)
   version: 1.0.0
   description: |-
-    Kafka bindings of the squad API contract at Ultimo (INT-U01 to INT-U03, BE-U02). Operations are described from the Provider Portal's point of view: `receive` operations are served by PP, `send` operations are produced by PP. The Customer Portal performs the mirror operation on each channel.
+    Kafka bindings of the squad API contract at Ultimo (INT-U01 to INT-U03). Provider Portal (PP) runs a Microservices architecture (BE-U01 to BE-U09), while Customer Portal (CP) runs a Modular Monolith architecture (BE-M01 to BE-M08) via PartnerIntegrationModule. Operations are described from the Provider Portal's point of view: `receive` operations are served by PP, `send` operations are produced by PP. The Customer Portal performs the mirror operation on each channel.
 
     Every message uses the envelope in `common/04-kafka.md` Section 1. Requests carry `replyTo`; responses copy the request's `correlationId` (INT-U02). A resend keeps the `correlationId`, gets a new `messageId` and increments `attempt` (INT-U03). Delivery is at-least-once and responders are idempotent.
 defaultContentType: application/json
@@ -277,7 +277,8 @@ operations:
     channel:
       $ref: '#/channels/ratingStatsRequest'
     title: Request rating statistics
-    description: PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03).
+    description: PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03). Served by
+      CP's Modular Monolith RatingModule (with standby redundant consumer in group cp-rating-service, CP-RATING-U01).
     messages:
     - $ref: '#/channels/ratingStatsRequest/messages/ratingStatisticsRequest'
     reply:
@@ -290,7 +291,8 @@ operations:
     channel:
       $ref: '#/channels/membershipRequest'
     title: Request membership
-    description: PP verifies Premium membership before applying a discount (Decision D-06).
+    description: PP verifies Premium membership before applying a discount (Decision D-06). Served by CP's Modular Monolith
+      EventModule (group cp-membership-service).
     messages:
     - $ref: '#/channels/membershipRequest/messages/membershipRequest'
     reply:
@@ -319,8 +321,8 @@ operations:
     channel:
       $ref: '#/channels/eventNotification'
     title: Publish regional event notifications
-    description: PP publishes to the CP-created topic; CP's dedicated consumer displays it to eligible Premium customers (PP-EVENT-U01,
-      U02).
+    description: PP publishes to the CP-created topic; CP's dedicated consumer (group cp-event-notification-consumer) displays
+      it to eligible Premium customers (PP-EVENT-U01, U02; CP-EVENT-U02).
     messages:
     - $ref: '#/channels/eventNotification/messages/regionalEventNotification'
 components:

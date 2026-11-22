@@ -1,6 +1,6 @@
 # 04: Kafka Integration (Ultimo)
 
-This file implements INT-U01 (services exchanged through Kafka), INT-U02 (a send channel and a receive channel per request, with correlation), INT-U03 (resend on failure), BE-U02 (broker-based communication) and BE-U09 (PMS through Kafka).
+This file implements **inter-subsystem** Kafka communication: `INT-U01` (services exchanged through Kafka between CP and PP), `INT-U02` (a send channel and a receive channel per request, with correlation), `INT-U03` (resend on failure), and Cross-Ecosystem PMS over Kafka. *(Note: `BE-U02` inter-microservice Kafka applies inside **Provider Portal's Microservices** architecture; inside **Customer Portal's Modular Monolith**, modules communicate in-process via External Interfaces and External DTOs per `BE-M03`–`BE-M06`.)*
 
 ## 1. Message envelope
 
@@ -126,13 +126,14 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 
 - A resend keeps the **same `correlationId`**, gets a **new `messageId`**, and increments `attempt`.
 - **Idempotent responders:** The responder stores `processed:{type}:{correlationId}` → response in Redis for 24 h. A duplicate request gets the **cached response** again, with no second booking and no second cancellation.
-- After the last attempt fails, the requester returns `503 SERVICE_UNAVAILABLE` to its own frontend (a controlled failure, BE-U07). For rating statistics, PP shows the last cached statistics marked "stale", or "temporarily unavailable".
+- After the last attempt fails, the requester returns `503 SERVICE_UNAVAILABLE` to its own frontend (a controlled failure; on CP's `/api/v1/customer/*` endpoints this is translated into CP's 4-field `"error"` payload with `errorCode: "SERVICE_UNAVAILABLE"` and `validInputExample: null`, see `01-conventions.md` §5.2). For rating statistics, PP shows the last cached statistics marked "stale", or "temporarily unavailable".
 - A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
 
 ## 5. Redundancy and delivery guarantees
 
 - **Delivery:** at-least-once. Producers use `acks=all` and `enable.idempotence=true`. Consumers commit offsets **after** processing. Responders are idempotent (§4).
 - **PP booking redundancy (PP-BOOK-U01):** Both PP booking-service instances (Machine 1 and Machine 2) join the consumer group `pp-booking-service`. If the primary fails, Kafka rebalances its partitions to the redundant instance, which continues from the last committed offset. CP needs no change. REST traffic from the PP frontend fails over through the API Gateway + service discovery (+ circuit breaker) in the same way.
+- **CP rating redundancy (CustomerPortalSRS §3):** CP runs a standby redundant rating instance in consumer group `cp-rating-service` consuming `rs.rating-stats.request.v1`. If the primary CP rating instance fails, Kafka rebalances partitions to the standby instance so on-demand rating statistics continue to be served.
 - **Ordering:** guaranteed per key. All events for one `bookingId` arrive in order.
 - **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP may consume and produce from a single modular-monolith process or from separate microservices; either way it uses the same groups (for example `cp-search-reply`), so Kafka delivers each response once per group. Neither side needs to know how the other is deployed.
 

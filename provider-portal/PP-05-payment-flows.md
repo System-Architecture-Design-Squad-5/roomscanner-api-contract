@@ -4,6 +4,13 @@
 
 Neither team controls the whole money lifecycle (CP-MONEY-M02(S)): **CP initiates and captures**, and **PP approves, releases and returns**. Gateway keys are per subsystem. Sandbox credentials live in each team's `.env` and are never committed.
 
+> **CP Customer-Facing Endpoint Mapping (`BookingModule`):**
+> 1. `POST /api/v1/customer/bookings/quotes` → calls `PP-OP-05 CreatePriceQuote` (`quoteId`, `priceBreakdown.total`, `payee`).
+> 2. `POST /api/v1/customer/payments/authorize` → Step 1 Authorize (Stripe `PaymentIntent.create(capture_method=manual)` / PayPal order creation).
+> 3. `POST /api/v1/customer/payments/capture` → Step 2 Capture into escrow (`CAPTURED_HELD` / `CAPTURED`).
+> 4. `POST /api/v1/customer/bookings` → calls `PP-OP-06 CreateBooking` (refunds automatically if `PP-OP-06` fails with `refundRequiredByPayer=true`).
+> 5. `POST /api/v1/customer/bookings/{bookingId}/cancel` → calls `PP-OP-09 CancelBookingByCustomer` (triggers PP Step 5 Refund / PayPal Payout).
+
 ## 1. Simplex: simulated order (no third-party provider)
 
 ```

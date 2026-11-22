@@ -5,9 +5,10 @@ info:
   title: RoomScanner Customer Portal - Partner API
   version: 1.0.0
   description: |-
-    REST API that the **Customer Portal (CP)** provides to the **Provider Portal (PP)**.
-    This file is the machine-readable form of `customer-portal/CP-services-required-by-PP.md`. CP owns these operations and approves this file.
-    At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`).
+    REST API that the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`) provides to the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`).
+    This file is the machine-readable form of `customer-portal/CP-01` to `CP-04` (indexed in `customer-portal/CP-services-required-by-PP.md`). CP owns these operations and has reviewed and confirmed this specification.
+    Within CP's Modular Monolith, `PartnerIntegrationModule` dispatches requests in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
+    At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a standby redundant rating instance in consumer group `cp-rating-service`.
   contact:
     name: RoomScanner squad API contract
     url: https://github.com/SQUAD-ORGANIZATION/roomscanner-api-contract
@@ -15,7 +16,7 @@ servers:
 - url: http://localhost:9080/api/v1/partner
   description: Local / Simplex
 - url: https://cp-gateway.{squad}.roomscanner.local/api/v1/partner
-  description: Deployed, through the API Gateway on Machine 4
+  description: Deployed (CP Modular Monolith PartnerIntegrationModule)
   variables:
     squad:
       default: squad

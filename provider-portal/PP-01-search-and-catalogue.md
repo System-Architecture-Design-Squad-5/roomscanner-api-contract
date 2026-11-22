@@ -6,6 +6,10 @@
 
 PP performs **authoritative** retrieval. CP only renders the results. All four operations are read-only and safe to retry.
 
+> **CP Modular Monolith Integration (`SearchModule` & `RatingModule`):**
+> - CP's `SearchModule` maps `PP-OP-01` (`/api/v1/customer/search/providers`), `PP-OP-02` (`/api/v1/customer/branches/{branchId}`), `PP-OP-03` (`/api/v1/customer/branches/{branchId}/rooms`), and `PP-OP-04` (`/api/v1/customer/rooms/{roomId}`). When a customer is logged in with an active Premium JWE, `SearchModule` passes `membershipTier=PREMIUM` so PP populates display-only `premiumPricePerNight`.
+> - While `PP-OP-02` returns up to 3 `latestComments` for the branch overview, full provider review pages (`GET /api/v1/customer/providers/{providerId}/reviews`) are served **directly in-process** inside CP's Modular Monolith by `SearchModule` calling `RatingModule` via `IRatingExternalService` (`ProviderPublicReviewsDto`) using `branch.providerId`.
+
 ---
 
 ## PP-OP-01 SearchProviders

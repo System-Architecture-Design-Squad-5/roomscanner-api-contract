@@ -12,29 +12,30 @@ The SRS documents leave several details to the teams ("teams document fields, ac
 
 | ID | Topic | Status |
 |---|---|---|
-| D-01 | Target integration level and transports | Proposed |
-| D-02 | Unified amenity / service list | Proposed; Lecturer confirmation |
-| D-03 | Search matching and filter semantics | Proposed; Lecturer confirmation |
-| D-04 | Search result unit and category vs room type | Proposed |
-| D-05 | Availability calculation | Proposed |
-| D-06 | Premium discount calculation, eligibility and policy changes | Proposed |
-| D-07 | Payment gateways per level | Proposed |
-| D-08 | Cancellation rules | Proposed |
-| D-09 | Mapping booking status to CP's three booking groups | Proposed |
-| D-10 | Review eligibility | Proposed |
-| D-11 | Rating statistics: denominators and PP caching | Proposed |
-| D-12 | Event suggestions: ranking and the two-month rule | Proposed; Lecturer confirmation |
-| D-13 | Medium "refund" wording vs separate payout | Proposed; Lecturer confirmation |
-| D-14 | Booking rejected after payment was captured | Proposed |
-| D-15 | Time zones | Proposed |
-| D-16 | Data minimisation | Proposed |
-| D-17 | SRS errata noted by the squad | Lecturer confirmation |
+| D-01 | Target integration level and transports | Agreed |
+| D-02 | Unified amenity / service list | Agreed; Lecturer confirmation |
+| D-03 | Search matching and filter semantics | Agreed; Lecturer confirmation |
+| D-04 | Search result unit and category vs room type | Agreed |
+| D-05 | Availability calculation | Agreed |
+| D-06 | Premium discount calculation, eligibility and policy changes | Agreed |
+| D-07 | Payment gateways per level | Agreed |
+| D-08 | Cancellation rules | Agreed |
+| D-09 | Mapping booking status to CP's three booking groups | Agreed |
+| D-10 | Review eligibility | Agreed |
+| D-11 | Rating statistics: denominators and PP caching | Agreed |
+| D-12 | Event suggestions: ranking and the two-month rule | Agreed; Lecturer confirmation |
+| D-13 | Medium "refund" wording vs separate payout | Agreed; Lecturer confirmation |
+| D-14 | Booking rejected after payment was captured | Agreed |
+| D-15 | Time zones | Agreed |
+| D-16 | Data minimisation | Agreed |
+| D-17 | SRS errata noted by the squad | Agreed; Lecturer confirmation |
 
 ---
 
 ### D-01 Target integration level and transports
 - **Decision:** The contract is written to **Ultimo** detail (typed fields + examples, TW-U04). Each operation lists its REST binding (Simplex/Medium) and its Kafka binding (Ultimo). The squad implements **one** binding per operation at Milestone 2, matching the selected level.
-- **Rationale:** One schema across transports means upgrading never changes the data, and the diagrams can show the same payloads at every level.
+- **Subsystem Architecture Independence (Common Req. §2 & §5):** Backend architecture levels are selected independently per team: **Customer Portal (CP)** uses a **Modular Monolith** (`BE-M01`–`BE-M08`), while **Provider Portal (PP)** uses **Microservices** (`BE-U01`–`BE-U09`). Both subsystems exchange the exact same Ultimo Kafka messages and REST payloads across the partner boundary.
+- **Rationale:** One schema across transports and subsystem architectures means upgrading or deploying either side never changes the contract data, and C4 diagrams show the same payloads at every level.
 
 ### D-02 Unified amenity / service list
 - **Conflict:** CP-SEARCH-S02 lists *Free WiFi, Private Bathroom, Air-conditioning, Facilities for Disabled Guests*. PP-ROOM-S06 lists *Free Wifi, Kitchen, Washing Machine, Pets Allowed*.
@@ -96,16 +97,19 @@ PP supplies `status` and the dates. CP combines them with its own review data (C
 | 3. Past | Reviewed by the customer, and today > `checkOutDate` |
 | (Cancelled) | `status = CANCELLED`, shown in a separate filter in CP |
 A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides how to present that overlap.
+- **CP Modular Monolith implementation:** CP's `BookingModule` (`GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST|CANCELLED`) fetches bookings via `PP-OP-08` and joins them in-process with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`).
 
 ### D-10 Review eligibility (PP-BOOK-S01, PP-RATING-S01, CP-RATING-S01)
 - A booking is eligible for a **provider-level** review when: `status ∈ {CONFIRMED, COMPLETED}`, the requesting `customerId` owns the booking, and today (branch local) ≥ `checkInDate`.
 - PP returns `reviewableFrom = checkInDate`. A cancelled booking is never eligible. Eligibility is checked per booking, so one review per booking (CP's rule).
+- **CP endpoint alignment:** CP exposes `GET /api/v1/customer/bookings/{bookingId}/review-eligibility` (backed by `PP-OP-10`) and re-verifies eligibility on `POST /api/v1/customer/reviews`, returning `403 RATING_ELIGIBILITY_DENIED` if ineligible.
 
 ### D-11 Rating statistics: denominators and PP caching (PP-RATING-S01, M01; CP-RATING-M03)
 - **Overall:** `average` = mean of the Overall scores of **active** (non-archived) reviews. `count` = number of active reviews. A distribution of counts per star value 1-5 is included.
 - **Subcategory average:** mean over the active reviews that scored that subcategory.
 - **Preset option percentage:** `selectedCount / denominator × 100`, rounded to 1 decimal. **`denominator` = the number of reviews whose score for that subcategory falls in the option's star group.** Options are only offered for that group, and customers may pick 0, 1 or 2 (CP-RATING-M02). Reviews that picked no option still count in the denominator.
 - **PP caching:** PP caches CP's response in Redis (`rating:provider:{providerId}`, TTL **10 min**) to show ratings in search results and the provider dashboard. PP **never recalculates**. On a cache miss with CP unavailable, PP shows "Rating temporarily unavailable" and does **not** substitute a value of its own.
+- **CP local endpoints:** CP's `GET /api/v1/customer/reviews/preset-options` and `GET /api/v1/customer/providers/{providerId}/reviews` read directly from CP's `providerId`-sharded `RatingModule` (`BE-M07`) using this same denominator calculation.
 
 ### D-12 Event suggestions: ranking and the two-month rule
 - **Top-2 ranking (PP-EVENT-S02, CP-EVENT-M02):** The candidates are active branches in the event's `city` + `country` with ≥ 1 available room for the event dates. They are ranked by `overallAverage` (from CP statistics) descending, then `totalReviews` descending, then `lowestPricePerNight` ascending. Branches with 0 reviews rank after rated ones. If fewer than 2 candidates exist, PP returns what it has (possibly an empty list, with `reason`).
@@ -147,7 +151,7 @@ Recorded so that reviewers see these were noticed and handled:
 | PP-PMS-S02 | Listed under Ultimo with an "S" ID, and says "while the premium membership is active" although Section 2.9 is about the provider's PMS subscription | Treated as an Ultimo requirement gated on the provider's **PMS subscription** (not customer Premium) |
 | PP-ROOM-U02 | Same text as PP-SEARCH-U02 | Covered by PP-OP-01…04 Kafka binding |
 | PP-SEARCH-U01 | Mentions "rating information" | Interpreted as "search information" |
-| CP exchange table | Mentions a redundant rating service at Ultimo | CP to confirm whether it adopts this. PP's resend policy (04-kafka §4) works either way. |
+| CP exchange table | Mentions a redundant rating service at Ultimo | **Confirmed by CP:** CP runs a standby redundant rating instance in consumer group `cp-rating-service` (`04-kafka.md` §5), so PP's resend policy works seamlessly. |
 | CP-RATING-S01 | Says "create a review for a room", while CP Section 2.6 and PP Section 2.7 say reviews target the provider | Reviews target the **provider**; PP-OP-10 returns `providerId` as the review target |
 | CP-SEARCH-S02 | Refers to "CP-SEARCH-01" | Read as CP-SEARCH-S01 |
 | PP Section 2.4.3 | States there are no Ultimo room requirements, but PP-ROOM-U02 appears in Section 2.6.3 | PP-ROOM-U02 is honoured through the Kafka binding of PP-OP-01 to PP-OP-04 |

@@ -791,11 +791,11 @@ def info(title, desc):
             "contact": {"name": "RoomScanner squad API contract", "url": "https://github.com/SQUAD-ORGANIZATION/roomscanner-api-contract"}}
 
 
-def servers(port, prefix):
+def servers(port, prefix, deployed_desc="Deployed, through the API Gateway on Machine 4"):
     return [
         {"url": f"http://localhost:{port}/api/v1/partner", "description": "Local / Simplex"},
         {"url": f"https://{prefix}-gateway.{{squad}}.roomscanner.local/api/v1/partner",
-         "description": "Deployed, through the API Gateway on Machine 4",
+         "description": deployed_desc,
          "variables": {"squad": {"default": "squad", "description": "Squad identifier"}}},
     ]
 
@@ -951,7 +951,7 @@ pp_paths["/event-suggestions"] = {"post": op(
 pp_doc = {
     "openapi": "3.0.3",
     "info": info("RoomScanner Provider Portal - Partner API", """
-REST API that the **Provider Portal (PP)** provides to the **Customer Portal (CP)**.
+REST API that the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`) provides to the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`).
 This file is the machine-readable form of `provider-portal/PP-01` to `PP-06` in the squad API contract; the markdown
 documents remain the source for business rules (`common/03-agreed-decisions.md`).
 
@@ -962,7 +962,7 @@ documents remain the source for business rules (`common/03-agreed-decisions.md`)
 PP pushes booking status changes to CP through CP's webhook (`POST /booking-events` in the Customer Portal specification) at Simplex and Medium,
 and through the `rs.booking.events.v1` topic at Ultimo.
 """),
-    "servers": servers(8080, "pp"),
+    "servers": servers(8080, "pp", "Deployed (PP Microservices via PP API Gateway + Service Discovery on Machine 4)"),
     "tags": [
         {"name": "Partner authentication", "description": "Client-credentials token for partner calls (INT-M03)"},
         {"name": "Search and catalogue", "description": "PP-01: authoritative search and room catalogue"},
@@ -1015,11 +1015,12 @@ cp_paths["/booking-events"] = {"post": op(
 cp_doc = {
     "openapi": "3.0.3",
     "info": info("RoomScanner Customer Portal - Partner API", """
-REST API that the **Customer Portal (CP)** provides to the **Provider Portal (PP)**.
-This file is the machine-readable form of `customer-portal/CP-services-required-by-PP.md`. CP owns these operations and approves this file.
-At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`).
+REST API that the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`) provides to the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`).
+This file is the machine-readable form of `customer-portal/CP-01` to `CP-04` (indexed in `customer-portal/CP-services-required-by-PP.md`). CP owns these operations and has reviewed and confirmed this specification.
+Within CP's Modular Monolith, `PartnerIntegrationModule` dispatches requests in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
+At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a standby redundant rating instance in consumer group `cp-rating-service`.
 """),
-    "servers": servers(9080, "cp"),
+    "servers": servers(9080, "cp", "Deployed (CP Modular Monolith PartnerIntegrationModule)"),
     "tags": [
         {"name": "Partner authentication", "description": "Client-credentials token for partner calls (INT-M03)"},
         {"name": "Ratings", "description": "CP-owned review statistics"},
@@ -1229,21 +1230,22 @@ operations = {
     "serveSearchRequests": aop("receive", "searchRequest", "Serve search requests", "PP consumes search requests and replies on rs.search.response.v1 with the same correlationId (PP-SEARCH-U02, PP-ROOM-U02).", "searchResponse", "pp-search-service"),
     "serveBookingRequests": aop("receive", "bookingRequest", "Serve booking requests", "PP consumes quote/booking/cancellation requests. Both booking-service instances join the same consumer group, so Kafka fails over to the redundant instance (PP-BOOK-U01).", "bookingResponse", "pp-booking-service"),
     "publishBookingEvents": aop("send", "bookingEvents", "Publish booking status events", "PP publishes every booking transition through a transactional outbox (PP-OP-11)."),
-    "requestRatingStatistics": aop("send", "ratingStatsRequest", "Request rating statistics", "PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03).", "ratingStatsResponse"),
-    "requestMembership": aop("send", "membershipRequest", "Request membership", "PP verifies Premium membership before applying a discount (Decision D-06).", "membershipResponse"),
+    "requestRatingStatistics": aop("send", "ratingStatsRequest", "Request rating statistics", "PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03). Served by CP's Modular Monolith RatingModule (with standby redundant consumer in group cp-rating-service, CP-RATING-U01).", "ratingStatsResponse"),
+    "requestMembership": aop("send", "membershipRequest", "Request membership", "PP verifies Premium membership before applying a discount (Decision D-06). Served by CP's Modular Monolith EventModule (group cp-membership-service).", "membershipResponse"),
     "receiveEventFavorites": aop("receive", "eventFavorite", "Receive event favorite changes", "PP schedules or publishes regional event notifications (Decision D-12).", group="pp-event-service"),
-    "publishEventNotifications": aop("send", "eventNotification", "Publish regional event notifications", "PP publishes to the CP-created topic; CP's dedicated consumer displays it to eligible Premium customers (PP-EVENT-U01, U02)."),
+    "publishEventNotifications": aop("send", "eventNotification", "Publish regional event notifications", "PP publishes to the CP-created topic; CP's dedicated consumer (group cp-event-notification-consumer) displays it to eligible Premium customers (PP-EVENT-U01, U02; CP-EVENT-U02)."),
 }
 
 async_doc = {
     "asyncapi": "3.0.0",
     "info": {
-        "title": "RoomScanner Squad - Kafka Integration (Provider Portal view)",
+        "title": "RoomScanner Squad - Kafka Integration (PP Microservices <-> CP Modular Monolith)",
         "version": VERSION,
         "description": (
-            "Kafka bindings of the squad API contract at Ultimo (INT-U01 to INT-U03, BE-U02). Operations are described from the "
-            "Provider Portal's point of view: `receive` operations are served by PP, `send` operations are produced by PP. "
-            "The Customer Portal performs the mirror operation on each channel.\n\n"
+            "Kafka bindings of the squad API contract at Ultimo (INT-U01 to INT-U03). Provider Portal (PP) runs a Microservices "
+            "architecture (BE-U01 to BE-U09), while Customer Portal (CP) runs a Modular Monolith architecture (BE-M01 to BE-M08) "
+            "via PartnerIntegrationModule. Operations are described from the Provider Portal's point of view: `receive` operations "
+            "are served by PP, `send` operations are produced by PP. The Customer Portal performs the mirror operation on each channel.\n\n"
             "Every message uses the envelope in `common/04-kafka.md` Section 1. Requests carry `replyTo`; responses copy the "
             "request's `correlationId` (INT-U02). A resend keeps the `correlationId`, gets a new `messageId` and increments `attempt` "
             "(INT-U03). Delivery is at-least-once and responders are idempotent."),
