@@ -36,16 +36,22 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
 {
   "messageId": "0c4a7d22-0000-4000-8000-00000000c001",
   "correlationId": "0c4a7d22-0000-4000-8000-00000000c0aa",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "GET_RATING_STATISTICS",
   "schemaVersion": "1.0",
   "source": "PP",
   "replyTo": "rs.rating-stats.response.v1",
   "attempt": 1,
-  "deadline": "2026-12-01T04:00:05Z",
+  "deadline": "2026-12-01T04:00:20Z",
   "timestamp": "2026-12-01T04:00:00Z",
   "payload": {
     "providerId": "5b1c2d3e-0000-4000-8000-000000000150",
-    "include": ["OVERALL", "SUBCATEGORIES", "PRESET_OPTIONS", "COMMENTS"],
+    "include": [
+      "OVERALL",
+      "SUBCATEGORIES",
+      "PRESET_OPTIONS",
+      "COMMENTS"
+    ],
     "commentsLimit": 10
   }
 }
@@ -213,6 +219,7 @@ Errors: `404` unknown order · `409 STATE_CONFLICT` (already completed or cancel
 {
   "messageId": "3e550000-0000-4000-8000-000000000d01",
   "correlationId": "fa7e0000-0000-4000-8000-000000000b02",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "FAVORITE_ADDED",
   "schemaVersion": "1.0",
   "source": "CP",
@@ -222,7 +229,18 @@ Errors: `404` unknown order · `409 STATE_CONFLICT` (already completed or cancel
     "favoriteId": "fa7e0000-0000-4000-8000-000000000b02",
     "customerId": "7d1e2f30-0000-4000-8000-000000000902",
     "favoritedAt": "2026-12-12T03:00:00Z",
-    "event": { "eventId": "e7e70000-0000-4000-8000-000000000c01", "name": "Hùng Kings' Temple Festival", "summary": "National festival honouring the Hùng Kings with processions, folk games and xoan singing.", "locationName": "Hùng Kings' Temple, Viet Tri City, Phu Tho", "city": "Viet Tri", "country": "VN", "timeZone": "Asia/Ho_Chi_Minh", "startDate": "2027-04-12", "endDate": "2027-04-18", "searchRoute": "/search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13" }
+    "event": {
+      "eventId": "e7e70000-0000-4000-8000-000000000c01",
+      "name": "Hùng Kings' Temple Festival",
+      "summary": "National festival honouring the Hùng Kings with processions, folk games and xoan singing.",
+      "locationName": "Hùng Kings' Temple, Viet Tri City, Phu Tho",
+      "city": "Viet Tri",
+      "country": "VN",
+      "timeZone": "Asia/Ho_Chi_Minh",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-18",
+      "searchRoute": "/search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13"
+    }
   }
 }
 ```

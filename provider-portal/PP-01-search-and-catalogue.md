@@ -142,14 +142,20 @@ Returns the branches (properties) in a city that match the keyword and filters, 
 {
   "messageId": "e1a2b3c4-0000-4000-8000-00000000a001",
   "correlationId": "c0ffee00-0000-4000-8000-00000000b001",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "SEARCH_PROVIDERS",
   "schemaVersion": "1.0",
   "source": "CP",
   "replyTo": "rs.search.response.v1",
   "attempt": 1,
-  "deadline": "2026-12-01T03:00:03Z",
+  "deadline": "2026-12-01T03:00:12Z",
   "timestamp": "2026-12-01T03:00:00Z",
-  "payload": { "city": "Hoi An", "country": "VN", "q": "Single Bed Free WiFi Homestay", "limit": 10 }
+  "payload": {
+    "city": "Hoi An",
+    "country": "VN",
+    "q": "Single Bed Free WiFi Homestay",
+    "limit": 10
+  }
 }
 ```
 The response has `type=SEARCH_PROVIDERS_RESULT`, `status=OK`, the same `correlationId`, and a `payload` identical to the REST `200` body.

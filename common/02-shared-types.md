@@ -75,6 +75,9 @@ Every operation references these types. Field types use JSON Schema names (`stri
 ### EscrowReleaseStatus (Ultimo)
 `HELD`, `RELEASE_PENDING`, `RELEASED`, `RELEASE_FAILED`, `REFUNDED`
 
+### TransferReversalStatus (Ultimo)
+`NOT_REQUIRED`, `PENDING`, `SUCCEEDED`, `FAILED`. Recovery of a released provider transfer is separate from the refund to the customer. After a successful reversal, funds are `HELD` while the refund is pending; a failed reversal leaves them `RELEASED`. See PP-05.
+
 ### DiscountType
 | Value | Meaning |
 |---|---|
@@ -222,6 +225,8 @@ Everything in `RoomSummary`, plus:
 | amount | Money | yes | Must equal `quote.priceBreakdown.total` |
 | paidAt | string | yes (DIRECT/ESCROW) | UTC timestamp |
 
+The schemas enforce the payment-mode combinations: SIMULATED uses gateway `NONE` and state `SIMULATED_ISSUED` with no real-payment references/time; DIRECT uses `PAYPAL_SANDBOX` and `CAPTURED`, requiring payment reference and paid time; ESCROW uses `STRIPE_SANDBOX` and `CAPTURED_HELD`, requiring payment reference, charge reference and paid time. Empty references are invalid. Monetary equality, gateway ownership and metadata binding are backend validations in PP-03.
+
 ### BookingSummary
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -242,9 +247,13 @@ Everything in `RoomSummary`, plus:
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | mode | PaymentMode | yes | |
-| originalPaymentReference | string | yes | Preserved after cancellation (PP-MONEY-M03) |
+| orderId | string (uuid) | no | Original CP order ID retained for reconciliation |
+| originalPaymentReference | string | DIRECT/ESCROW | Preserved after cancellation (PP-MONEY-M03) |
 | escrowStatus | EscrowReleaseStatus | ESCROW | |
 | releaseReference | string | no | Stripe Transfer ID once released |
+| transferReversalStatus | TransferReversalStatus | when reversal is attempted | Separate transfer recovery outcome; absent means not required |
+| transferReversalReference | string | on successful reversal | Stripe TransferReversal ID (`trr_...`), retained after refund |
+| transferReversalFailureCause | string | on failed reversal | Gateway cause of transfer recovery failure; kept distinct from the customer refund cause |
 | returnPaymentStatus | ReturnPaymentStatus | yes | |
 | returnPaymentReference | string | no | PayPal payout batch/item ID, or Stripe Refund ID. Kept separate from the original. |
 | failureCause | string | no | Gateway's failure reason when available |

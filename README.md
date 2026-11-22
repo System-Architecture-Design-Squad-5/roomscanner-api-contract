@@ -68,7 +68,9 @@ roomscanner-api-contract/
 |   `-- asyncapi/
 |       `-- roomscanner-kafka.yaml             Kafka topics and messages (AsyncAPI 3.0.0)
 |-- tools/
-|   `-- generate_specs.py              regenerates specs/ from one shared schema set
+|   |-- generate_specs.py              regenerates specs/ from one shared schema set
+|   |-- validate_specs.py              validates examples, schema regressions and generator sync
+|   `-- requirements-validation.txt    pinned validation dependencies
 `-- .github/
     `-- pull_request_template.md       review checklist with one reviewer per team (TW-M02)
 ```
@@ -79,8 +81,20 @@ roomscanner-api-contract/
 |---|---|
 | Browse the REST APIs | Paste a file from `specs/openapi/` into https://editor.swagger.io, or run `npx @redocly/cli preview-docs specs/openapi/provider-portal-partner-api.yaml` |
 | Browse the Kafka API | Paste `specs/asyncapi/roomscanner-kafka.yaml` into https://studio.asyncapi.com |
-| Regenerate after a schema change | `pip install pyyaml==6.0.2`, then `python tools/generate_specs.py .` |
+| Regenerate after a schema change | `python -m pip install -r tools/requirements-validation.txt`, then `python tools/generate_specs.py .` |
 | Validate | OpenAPI: `openapi-spec-validator` or `redocly lint`. AsyncAPI: `asyncapi validate`. Every example in the three files has been checked against its schema. |
+
+For the repository's repeatable checks, run:
+
+```sh
+python -m pip install -r tools/requirements-validation.txt
+python tools/generate_specs.py .
+python tools/validate_specs.py
+```
+
+The checks cover both OpenAPI documents, all embedded machine-readable examples, malformed Kafka/payment/event payloads, request/response correlation, retry budgets, custom bearer authentication, CP-order reconciliation and generator/spec consistency. This validates the contract; runtime duplicate protection, transactions, gateway access and failover still require implementation tests in the portal repositories.
+
+The corrections recorded under **Unreleased** in `CHANGELOG.md` revise the unsigned v1.0.0 draft. Required trace/idempotency fields and stricter validation must be reviewed by both teams before the baseline is signed/tagged; these edits do not constitute team sign-off or a deployed API migration.
 
 ## 3. Operation index
 

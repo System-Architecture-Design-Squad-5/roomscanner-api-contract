@@ -38,12 +38,14 @@ paths:
       - Partner authentication
       operationId: issuePartnerToken
       summary: Issue a partner access token
-      description: 'Exchanges a partner client ID and secret for a short-lived signed JWT (client-credentials). Secrets are
-        shared out-of-band and never committed. Rate limit: 10 requests per 60 s.'
+      description: 'Custom JSON credential exchange for a short-lived signed JWT; this is not an OAuth2 token endpoint. Secrets
+        are shared out-of-band and never committed. Rate limit: 10 requests per 60 s.'
       x-contract-id: AUTH-01
       security: []
       parameters:
       - $ref: '#/components/parameters/XRequestId'
+      - $ref: '#/components/parameters/XCorrelationId'
+      - $ref: '#/components/parameters/XTraceId'
       requestBody:
         required: true
         content:
@@ -64,6 +66,16 @@ paths:
           headers:
             X-Request-Id:
               description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
@@ -114,6 +126,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/XRequestId'
       - $ref: '#/components/parameters/XCorrelationId'
+      - $ref: '#/components/parameters/XTraceId'
       - name: providerId
         in: path
         required: true
@@ -149,6 +162,16 @@ paths:
           headers:
             X-Request-Id:
               description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
@@ -248,8 +271,9 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
       security:
-      - partnerOAuth:
-        - rating:read
+      - partnerBearer: []
+      x-required-scopes:
+      - rating:read
   /customers/{customerId}/membership:
     get:
       tags:
@@ -266,6 +290,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/XRequestId'
       - $ref: '#/components/parameters/XCorrelationId'
+      - $ref: '#/components/parameters/XTraceId'
       - name: customerId
         in: path
         required: true
@@ -279,6 +304,16 @@ paths:
           headers:
             X-Request-Id:
               description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
@@ -319,8 +354,9 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
       security:
-      - partnerOAuth:
-        - membership:read
+      - partnerBearer: []
+      x-required-scopes:
+      - membership:read
   /orders/{orderId}:
     patch:
       tags:
@@ -335,6 +371,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/XRequestId'
       - $ref: '#/components/parameters/XCorrelationId'
+      - $ref: '#/components/parameters/XTraceId'
       - name: orderId
         in: path
         required: true
@@ -360,6 +397,16 @@ paths:
           headers:
             X-Request-Id:
               description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
@@ -406,6 +453,16 @@ paths:
               schema:
                 type: string
                 format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
+              schema:
+                type: string
+                format: uuid
           content:
             application/json:
               schema:
@@ -419,8 +476,9 @@ paths:
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
       security:
-      - partnerOAuth:
-        - order:write
+      - partnerBearer: []
+      x-required-scopes:
+      - order:write
   /booking-events:
     post:
       tags:
@@ -437,6 +495,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/XRequestId'
       - $ref: '#/components/parameters/XCorrelationId'
+      - $ref: '#/components/parameters/XTraceId'
       requestBody:
         required: true
         content:
@@ -520,6 +579,16 @@ paths:
               schema:
                 type: string
                 format: uuid
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
+              schema:
+                type: string
+                format: uuid
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -551,9 +620,10 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
       security:
-      - partnerOAuth:
-        - booking-event:write
+      - partnerBearer: []
         webhookSignature: []
+      x-required-scopes:
+      - booking-event:write
 components:
   parameters:
     XRequestId:
@@ -568,7 +638,15 @@ components:
       name: X-Correlation-Id
       in: header
       required: true
-      description: UUID shared by every call in one business flow.
+      description: UUID for one logical operation; reused only for its transport retries and response.
+      schema:
+        type: string
+        format: uuid
+    XTraceId:
+      name: X-Trace-Id
+      in: header
+      required: true
+      description: Business-flow UUID shared by related operations; maps to Kafka traceId.
       schema:
         type: string
         format: uuid
@@ -576,7 +654,8 @@ components:
       name: Idempotency-Key
       in: header
       required: true
-      description: UUID. A retry with the same key returns the original result without a second side effect. Kept for 24 h.
+      description: UUID scoped to the authenticated partner and operation. Same key/body replays the original outcome; changed
+        body returns 409. Durable booking/payment uniqueness survives Redis cache expiry.
       schema:
         type: string
         format: uuid
@@ -586,6 +665,16 @@ components:
       headers:
         X-Request-Id:
           description: Echo of the request header
+          schema:
+            type: string
+            format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
@@ -612,6 +701,16 @@ components:
           schema:
             type: string
             format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
+          schema:
+            type: string
+            format: uuid
       content:
         application/json:
           schema:
@@ -629,6 +728,16 @@ components:
       headers:
         X-Request-Id:
           description: Echo of the request header
+          schema:
+            type: string
+            format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
@@ -652,6 +761,16 @@ components:
           schema:
             type: string
             format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
+          schema:
+            type: string
+            format: uuid
       content:
         application/json:
           schema:
@@ -669,6 +788,16 @@ components:
       headers:
         X-Request-Id:
           description: Echo of the request header
+          schema:
+            type: string
+            format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
@@ -693,6 +822,16 @@ components:
       headers:
         X-Request-Id:
           description: Echo of the request header
+          schema:
+            type: string
+            format: uuid
+        X-Correlation-Id:
+          description: Echo of this logical operation's correlation ID
+          schema:
+            type: string
+            format: uuid
+        X-Trace-Id:
+          description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
@@ -859,31 +998,124 @@ components:
       - unitPricePerNight
       - subtotal
       - total
+    TransferReversalStatus:
+      type: string
+      enum:
+      - NOT_REQUIRED
+      - PENDING
+      - SUCCEEDED
+      - FAILED
+      description: Recovery of a previously released Stripe transfer; separate from the customer refund outcome.
     BookingPaymentStatus:
       type: object
       description: Beneficiary-side payment status of a booking.
       properties:
         mode:
           $ref: '#/components/schemas/PaymentMode'
+        orderId:
+          type: string
+          description: Original CP order ID; retained for reconciliation
+          format: uuid
         originalPaymentReference:
           type: string
           description: Preserved after cancellation (PP-MONEY-M03)
+          minLength: 1
         escrowStatus:
           $ref: '#/components/schemas/EscrowReleaseStatus'
         releaseReference:
           type: string
           description: Stripe Transfer ID once released (ESCROW)
+          minLength: 1
+        transferReversalStatus:
+          $ref: '#/components/schemas/TransferReversalStatus'
+        transferReversalReference:
+          type: string
+          description: Stripe TransferReversal ID (trr_...), retained after a successful reversal
+          minLength: 1
+        transferReversalFailureCause:
+          type: string
+          description: Failure to recover a released transfer; distinct from a refund failure
+          minLength: 1
         returnPaymentStatus:
           $ref: '#/components/schemas/ReturnPaymentStatus'
         returnPaymentReference:
           type: string
           description: PayPal payout batch ID or Stripe Refund ID. Separate from the original payment.
+          minLength: 1
         failureCause:
           type: string
           description: Gateway failure reason, when available
       required:
       - mode
       - returnPaymentStatus
+      allOf:
+      - oneOf:
+        - properties:
+            mode:
+              enum:
+              - SIMULATED
+        - properties:
+            mode:
+              enum:
+              - DIRECT
+          required:
+          - originalPaymentReference
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+          required:
+          - originalPaymentReference
+          - escrowStatus
+      - oneOf:
+        - not:
+            anyOf:
+            - required:
+              - transferReversalStatus
+            - required:
+              - transferReversalReference
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - NOT_REQUIRED
+              - PENDING
+          required:
+          - transferReversalStatus
+          not:
+            anyOf:
+            - required:
+              - transferReversalReference
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - transferReversalStatus
+          - transferReversalReference
+          not:
+            anyOf:
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - FAILED
+          required:
+          - transferReversalStatus
+          - transferReversalFailureCause
     CancellationInfo:
       type: object
       properties:
@@ -1399,18 +1631,18 @@ components:
       - bookingId
       - updatedAt
   securitySchemes:
-    partnerOAuth:
-      type: oauth2
-      description: Partner client-credentials flow (INT-M03). The token identifies a subsystem, not an end user. End-user
-        JWE tokens are never forwarded between subsystems.
-      flows:
-        clientCredentials:
-          tokenUrl: /api/v1/partner/auth/token
-          scopes:
-            rating:read: CP-OP-01
-            membership:read: CP-OP-02
-            order:write: CP-OP-03
-            booking-event:write: CP-OP-04
+    partnerBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Custom JSON partner-token issuance at POST /api/v1/partner/auth/token (INT-M03), not an OAuth2 token endpoint.
+        The signed JWS identifies a subsystem. The gateway enforces each operation's x-required-scopes. End-user JWE tokens
+        are never forwarded.
+      x-granted-scopes:
+        rating:read: CP-OP-01
+        membership:read: CP-OP-02
+        order:write: CP-OP-03
+        booking-event:write: CP-OP-04
     webhookSignature:
       type: apiKey
       in: header

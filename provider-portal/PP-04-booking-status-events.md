@@ -34,6 +34,8 @@ CP turns these events into (a) the **confirmation email** (CP-MONEY-S01) and (b)
 | emailData | object | for `BOOKING_CONFIRMED` / `BOOKING_CANCELLED` | Content for CP's email: `{ bookingCode, providerName, branchName, branchAddress, branchPhone, roomName, checkInDate, checkOutDate, checkInTime, quantity, adults, children, total }` |
 | message | string | no | Short receptionist note shown to the customer, e.g. a rejection reason |
 
+At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recovery workflow after a released booking is cancelled. `booking.payment` preserves `releaseReference`, `transferReversalStatus`, `transferReversalReference` / `transferReversalFailureCause`, and the separate `returnPaymentStatus` / `returnPaymentReference`. A successful reversal is not a successful refund. See PP-05 for pending/failure transitions; the AsyncAPI examples include a completed reversal followed by a successful refund.
+
 ### Example: confirmation (Ultimo escrow, funds released)
 ```json
 {
@@ -122,6 +124,7 @@ On `rs.booking.events.v1` the event above is the `payload` of the standard envel
 {
   "messageId": "11112222-0000-4000-8000-0000000000e1",
   "correlationId": "8c9d0e1f-0000-4000-8000-000000000801",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "BOOKING_CONFIRMED",
   "schemaVersion": "1.0",
   "source": "PP",
@@ -131,7 +134,10 @@ On `rs.booking.events.v1` the event above is the `payload` of the standard envel
     "eventType": "BOOKING_CONFIRMED",
     "occurredAt": "2026-12-01T09:15:40Z",
     "sequence": 2,
-    "booking": { "bookingId": "8c9d0e1f-0000-4000-8000-000000000801", "status": "CONFIRMED" }
+    "booking": {
+      "bookingId": "8c9d0e1f-0000-4000-8000-000000000801",
+      "status": "CONFIRMED"
+    }
   }
 }
 ```
