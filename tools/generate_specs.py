@@ -413,7 +413,9 @@ S["CancelBookingRequest"] = obj({
 S["ReviewEligibility"] = obj({
     "bookingId": uuid(), "customerId": uuid(),
     "providerId": uuid("Review target. Reviews are per provider, not per room."),
+    "providerName": s("Accommodation provider company name"),
     "branchId": uuid(),
+    "branchName": s("Booked branch property name"),
     "stayStartDate": date(), "stayEndDate": date(),
     "reviewableFrom": date(),
     "bookingStatus": ref("BookingStatus"),
@@ -543,7 +545,7 @@ S["RatingStatisticsRequest"] = obj({
 }, ["providerId"])
 S["MembershipRequest"] = obj({"customerId": uuid()}, ["customerId"])
 S["EventFavoriteChanged"] = obj({
-    "changeType": enum(["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED"], "Change type"),
+    "changeType": enum(["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED", "EVENT_DELETED"], "Change type"),
     "favoriteId": uuid("Required for FAVORITE_*"),
     "customerId": uuid("Required for FAVORITE_*"),
     "favoritedAt": dt("Required for FAVORITE_ADDED"),
@@ -646,7 +648,8 @@ CONFIRMED = dict(SUMMARY, status="CONFIRMED", updatedAt="2026-12-01T09:15:40Z",
 CANCELLED = dict(SUMMARY, status="CANCELLED", updatedAt="2026-12-03T05:00:00Z",
                  cancellation={"cancelledBy": "CUSTOMER", "reason": "Change of travel plans", "cancelledAt": "2026-12-03T05:00:00Z"},
                  payment={"mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "HELD", "returnPaymentStatus": "PENDING"})
-ELIG = {"bookingId": IDS["booking"], "customerId": IDS["customer"], "providerId": IDS["provider"], "branchId": IDS["branch"],
+ELIG = {"bookingId": IDS["booking"], "customerId": IDS["customer"], "providerId": IDS["provider"], "providerName": "Thu Bon Family Stays",
+        "branchId": IDS["branch"], "branchName": "Riverside Homestay Hoi An",
         "stayStartDate": "2027-04-10", "stayEndDate": "2027-04-13", "reviewableFrom": "2027-04-10", "bookingStatus": "CONFIRMED",
         "eligible": False, "reason": "BEFORE_STAY_START", "evaluatedAt": "2027-04-09T10:00:00Z"}
 EVENT = {"eventId": IDS["event"], "name": "Hùng Kings' Temple Festival",
@@ -1257,8 +1260,8 @@ A_MSG = {
     "MembershipResponse": message("MembershipResponse", "Membership response", "CP answers with the same correlationId.",
                                   ["GET_MEMBERSHIP_RESULT"], ["Membership", "Error"], "customerId",
                                   [("result", env_example("GET_MEMBERSHIP_RESULT", "CP", MEMBER, status="OK", mid="6b0e2a71-0000-4000-8000-00000000a104"))]),
-    "EventFavoriteChanged": message("EventFavoriteChanged", "Event favorite changed", "CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed (CP-OP-05).",
-                                    ["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED"], ["EventFavoriteChanged"], "eventId",
+    "EventFavoriteChanged": message("EventFavoriteChanged", "Event favorite changed", "CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed or it was deleted (CP-OP-05).",
+                                    ["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED", "EVENT_DELETED"], ["EventFavoriteChanged"], "eventId",
                                     [("added", env_example("FAVORITE_ADDED", "CP", {"changeType": "FAVORITE_ADDED", "favoriteId": "fa7e0000-0000-4000-8000-000000000b02", "customerId": "7d1e2f30-0000-4000-8000-000000000902", "favoritedAt": "2026-12-12T03:00:00Z", "event": EVENT},
                                                            correlation="fa7e0000-0000-4000-8000-000000000b02", mid="3e550000-0000-4000-8000-000000000d01", ts="2026-12-12T03:00:00Z"))]),
     "RegionalEventNotification": message("RegionalEventNotification", "Regional event notification", "PP publishes the top-2 suggestions for a favorited event at the agreed time (PP-OP-13).",

@@ -90,6 +90,28 @@ Every operation references these types. Field types use JSON Schema names (`stri
 ### RatingSubcategory
 `SERVICE`, `FRIENDLINESS`, `ROOM`
 
+### PresetFeedbackOptionCatalogue (18 agreed options across 3 subcategories × 3 star groups, CP-RATING-M02, PP-RATING-M01)
+| Subcategory | StarGroup | `optionId` | `label` |
+|---|---|---|---|
+| `SERVICE` | `FOUR_TO_FIVE` | `SRV-45-A` | `"The food is delicious"` |
+| `SERVICE` | `FOUR_TO_FIVE` | `SRV-45-B` | `"The services are highly convenient and efficient"` |
+| `SERVICE` | `THREE` | `SRV-3-A` | `"Service was acceptable"` |
+| `SERVICE` | `THREE` | `SRV-3-B` | `"Staff were slow at peak times"` |
+| `SERVICE` | `ONE_TO_TWO` | `SRV-12-A` | `"Requests were ignored"` |
+| `SERVICE` | `ONE_TO_TWO` | `SRV-12-B` | `"Food quality was poor"` |
+| `FRIENDLINESS` | `FOUR_TO_FIVE` | `FRD-45-A` | `"Staff were warm and welcoming"` |
+| `FRIENDLINESS` | `FOUR_TO_FIVE` | `FRD-45-B` | `"Hosts went above and beyond to help"` |
+| `FRIENDLINESS` | `THREE` | `FRD-3-A` | `"Staff were polite but distant"` |
+| `FRIENDLINESS` | `THREE` | `FRD-3-B` | `"Check-in greeting was average"` |
+| `FRIENDLINESS` | `ONE_TO_TWO` | `FRD-12-A` | `"Staff attitude was rude or unhelpful"` |
+| `FRIENDLINESS` | `ONE_TO_TWO` | `FRD-12-B` | `"Communication with reception was difficult"` |
+| `ROOM` | `FOUR_TO_FIVE` | `RM-45-A` | `"Room was spotless and comfortable"` |
+| `ROOM` | `FOUR_TO_FIVE` | `RM-45-B` | `"Amenities and bed quality matched the photos"` |
+| `ROOM` | `THREE` | `RM-3-A` | `"Room was clean but slightly dated"` |
+| `ROOM` | `THREE` | `RM-3-B` | `"Noise isolation could be improved"` |
+| `ROOM` | `ONE_TO_TWO` | `RM-12-A` | `"Room cleanliness was below expectations"` |
+| `ROOM` | `ONE_TO_TWO` | `RM-12-B` | `"Listed amenities were broken or missing"` |
+
 ## 2. Objects
 
 ### Money

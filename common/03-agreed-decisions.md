@@ -120,8 +120,8 @@ A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides h
   - Favorited **on or after** the window start, and before the event ends → PP publishes **immediately**.
   - Favorited **before** the window start → PP schedules publication **at** the window start.
   - Event already ended → nothing is published.
-  - **Edits:** Only a change to `startDate` or `endDate` re-computes the schedule. Any other event edit (title, description) does **not** trigger or move a notification. A notification that was already published is not re-sent.
-  - Unfavorite before publication → the scheduled publication is cancelled.
+  - **Edits & Deletion:** Only a change to `startDate` or `endDate` (`EVENT_DATES_CHANGED`) re-computes the schedule. Any other event edit (title, description) does **not** trigger or move a notification. If an admin deletes an event (`EVENT_DELETED`), PP cancels all pending scheduled notifications for that `eventId`. A notification that was already published is not re-sent.
+  - Unfavorite before publication (`FAVORITE_REMOVED`) → the scheduled publication is cancelled.
 - **Open point (lecturer confirmation):** whether the "−1 day" interpretation of the example is intended.
 
 ### D-13 Medium "refund" wording vs a separate payout

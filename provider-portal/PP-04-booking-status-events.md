@@ -12,7 +12,7 @@
 | Simplex / Medium | PP calls CP's webhook **CP-OP-04** `POST {CP}/api/v1/partner/booking-events` (scope `booking-event:write`, `X-RS-Signature`) |
 | Ultimo | PP produces to `rs.booking.events.v1` (key `bookingId`, consumer group `cp-booking-events`) |
 
-CP turns these events into (a) the **confirmation email** (CP-MONEY-S01) and (b) a **real-time in-app notification**, pushed over CP's own WebSocket to its frontend (CP-MONEY-M02).
+CP turns these events into (a) the **confirmation/cancellation email** (`CP-MONEY-S01`, resolving the recipient email address from `booking.customerId` in CP's account shard) and (b) a **real-time in-app notification**, pushed over CP's own WebSocket to its frontend (`CP-MONEY-M02`).
 
 ### Event types
 | eventType | Emitted when | Triggered by |

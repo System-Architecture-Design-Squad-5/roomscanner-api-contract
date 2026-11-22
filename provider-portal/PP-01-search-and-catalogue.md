@@ -7,7 +7,8 @@
 PP performs **authoritative** retrieval. CP only renders the results. All four operations are read-only and safe to retry.
 
 > **CP Modular Monolith Integration (`SearchModule` & `RatingModule`):**
-> - CP's `SearchModule` maps `PP-OP-01` (`/api/v1/customer/search/providers`), `PP-OP-02` (`/api/v1/customer/branches/{branchId}`), `PP-OP-03` (`/api/v1/customer/branches/{branchId}/rooms`), and `PP-OP-04` (`/api/v1/customer/rooms/{roomId}`). When a customer is logged in with an active Premium JWE, `SearchModule` passes `membershipTier=PREMIUM` so PP populates display-only `premiumPricePerNight`.
+> - CP's `SearchModule` maps `PP-OP-01` (`/api/v1/customer/search/providers`), `PP-OP-02` (`/api/v1/customer/branches/{branchId}`), `PP-OP-03` (`/api/v1/customer/branches/{branchId}/rooms`), and `PP-OP-04` (`/api/v1/customer/rooms/{roomId}`). When a customer is logged in with an active Premium JWE, `SearchModule` passes `membershipTier=PREMIUM` on `PP-OP-03` and `PP-OP-04` so PP populates display-only `premiumPricePerNight`.
+> - **Default City & Sub-Region Cities:** Because `PP-OP-01` requires `city` and returns `400 CITY_OUTSIDE_SUBREGION` for cities outside the squad's two assigned countries (e.g. `VN` and `TH`), CP's frontend search bar provides a curated city selector for the squad's sub-region and defaults initial homepage browsing to the primary sub-region city (e.g. `city=Ho Chi Minh City`).
 > - While `PP-OP-02` returns up to 3 `latestComments` for the branch overview, full provider review pages (`GET /api/v1/customer/providers/{providerId}/reviews`) are served **directly in-process** inside CP's Modular Monolith by `SearchModule` calling `RatingModule` via `IRatingExternalService` (`ProviderPublicReviewsDto`) using `branch.providerId`.
 
 ---

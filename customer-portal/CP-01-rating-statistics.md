@@ -99,7 +99,7 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
   }
 }
 ```
-*(`FRIENDLINESS` and `ROOM` entries have the same shape and are omitted here for brevity.)*
+*(`FRIENDLINESS` and `ROOM` entries have the same shape and use the authoritative 18-option `PresetFeedbackOptionCatalogue` in `common/02-shared-types.md`: `FRD-45-A/B`, `FRD-3-A/B`, `FRD-12-A/B` and `RM-45-A/B`, `RM-3-A/B`, `RM-12-A/B`.)*
 
 ### Shard Routing & Redundancy (`BE-M07`, `CP-RATING-U02`, `CP-EXCH-U01`)
 - **Targeted Sharding:** CP shards reviews by **`providerId`** (hash). A request for one provider touches exactly one shard; deleted reviews reside in a separate archive shard/table (`CP-RATING-S04`).

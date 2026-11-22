@@ -15,7 +15,7 @@ Customer Portal (`EventModule` + `PartnerIntegrationModule`) is the authoritativ
 ### Payload Fields
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `changeType` | string | yes | `FAVORITE_ADDED`, `FAVORITE_REMOVED`, or `EVENT_DATES_CHANGED` |
+| `changeType` | string | yes | `FAVORITE_ADDED`, `FAVORITE_REMOVED`, `EVENT_DATES_CHANGED`, or `EVENT_DELETED` |
 | `favoriteId` | string (uuid) | for `FAVORITE_*` | |
 | `customerId` | string (uuid) | for `FAVORITE_*` | |
 | `favoritedAt` | string | for `FAVORITE_ADDED` | UTC. PP uses this for immediate vs. 2-month scheduled delivery (`D-12`). |
@@ -25,6 +25,7 @@ Customer Portal (`EventModule` + `PartnerIntegrationModule`) is the authoritativ
 - CP sends `FAVORITE_ADDED` **only** for customers who hold an `ACTIVE` `PREMIUM` membership at favorite time (`CP-EVENT-M01`).
 - CP sends `FAVORITE_REMOVED` when an active Premium customer unfavorites an event (`DELETE /api/v1/customer/events/{eventId}/favorite`) so PP cancels any pending 2-month scheduled notification.
 - CP sends `EVENT_DATES_CHANGED` only when an admin edits `startDate` or `endDate` (`PUT /api/v1/customer/admin/events/{eventId}`). Other metadata edits are not sent (`D-12`).
+- CP sends `EVENT_DELETED` when an admin deletes an event (`DELETE /api/v1/customer/admin/events/{eventId}`) so PP cancels all pending scheduled notifications for that `eventId`.
 
 ### Example (`FAVORITE_ADDED`)
 

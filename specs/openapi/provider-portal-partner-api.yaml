@@ -3365,9 +3365,15 @@ components:
           type: string
           description: Review target. Reviews are per provider, not per room.
           format: uuid
+        providerName:
+          type: string
+          description: Accommodation provider company name
         branchId:
           type: string
           format: uuid
+        branchName:
+          type: string
+          description: Booked branch property name
         stayStartDate:
           type: string
           format: date

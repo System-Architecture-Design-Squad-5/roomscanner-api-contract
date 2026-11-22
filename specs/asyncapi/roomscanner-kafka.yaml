@@ -5002,6 +5002,7 @@ components:
           - FAVORITE_ADDED
           - FAVORITE_REMOVED
           - EVENT_DATES_CHANGED
+          - EVENT_DELETED
           description: Change type
         favoriteId:
           type: string

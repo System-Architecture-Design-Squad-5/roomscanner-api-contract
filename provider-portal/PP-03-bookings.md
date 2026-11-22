@@ -334,7 +334,7 @@ For timeout reconciliation, use `orderId` without status/date filters. It return
 
 > **Shard routing (PP-SEARCH-U01 style):** Reservations are sharded by **`branch country`**, with a secondary index table `customer_booking_index (customerId → bookingId, shardId)` cached in Redis. A list query touches only the shards that hold that customer's bookings.
 >
-> **CP Modular Monolith Integration (`BookingModule` → `RatingModule`):** When serving `GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST`, CP's `BookingModule` fetches the customer's bookings via `PP-OP-08` and joins them **in-process** with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`) to classify bookings into the 3 UI groups (`CP-BOOK-S02(b)`, Decision D-09).
+> **CP Modular Monolith Integration (`BookingModule` → `RatingModule`):** When serving `GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST`, CP's `BookingModule` fetches the customer's bookings via `PP-OP-08` (requesting `limit=50` so post-filtering never yields an empty page 1) and joins them **in-process** with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`) to classify bookings into the 3 UI groups (`CP-BOOK-S02(b)`, Decision D-09).
 
 ---
 
@@ -426,7 +426,9 @@ A `BookingSummary` with `status=CANCELLED`, the `cancellation` filled, and `paym
 | bookingId | string | |
 | customerId | string | |
 | providerId | string | The review target. Reviews are per **provider**, not per room. |
+| providerName | string | Company name of the accommodation provider (so CP can display and store it with the review without an extra `PP-OP-07` call) |
 | branchId | string | |
+| branchName | string | Property name of the booked branch |
 | stayStartDate / stayEndDate | string (date) | |
 | reviewableFrom | string (date) | = stayStartDate |
 | bookingStatus | BookingStatus | |
@@ -439,7 +441,9 @@ A `BookingSummary` with `status=CANCELLED`, the `cancellation` filled, and `paym
   "bookingId": "8c9d0e1f-0000-4000-8000-000000000801",
   "customerId": "7d1e2f30-0000-4000-8000-000000000901",
   "providerId": "5b1c2d3e-0000-4000-8000-000000000150",
+  "providerName": "Thu Bon Family Stays",
   "branchId": "9a8b7c6d-0000-4000-8000-000000000250",
+  "branchName": "Riverside Homestay Hoi An",
   "stayStartDate": "2027-04-10",
   "stayEndDate": "2027-04-13",
   "reviewableFrom": "2027-04-10",
