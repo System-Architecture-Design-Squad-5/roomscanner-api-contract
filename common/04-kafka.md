@@ -10,29 +10,37 @@ Every Kafka message value is a JSON envelope. The `payload` is exactly the REST 
 |---|---|---|---|
 | messageId | string (UUID) | yes | Unique per message. A resend gets a **new** messageId. |
 | correlationId | string (UUID) | yes | Set by the requester. Copied unchanged into the response, and kept the same on every resend. |
-| causationId | string (UUID) | no | messageId of the message that caused this one |
+| traceId | string (UUID) | yes | Business-flow trace shared by related logical requests/events. Maps to `X-Trace-Id`; never a pending-request or deduplication key. |
+| idempotencyKey | string (UUID) | CREATE_QUOTE / CREATE_BOOKING / CANCEL_BOOKING only | Stable write identity scoped to authenticated partner + operation; unchanged on resend or transport retry. Maps to `Idempotency-Key`. |
+| causationId | string (UUID) | required on responses | messageId of the request attempt that caused this response; optional on requests/events |
 | type | string | yes | Operation type, e.g. `CREATE_BOOKING`, `CREATE_BOOKING_RESULT` |
 | schemaVersion | string | yes | `"1.0"` |
 | source | string | yes | `"PP"` or `"CP"` (with the squad prefix for PMS) |
-| replyTo | string | requests only | Topic for the response (the receive channel) |
-| attempt | integer | requests only | 1 for the first send, then incremented on each resend |
-| deadline | string | requests only | UTC. The responder may skip requests that are already past this time. |
+| replyTo | string | required on requests | Must be the operation's paired response topic (the receive channel); arbitrary destinations are rejected. Forbidden on responses/events. |
+| attempt | integer | required on requests | 1 for the first send, then incremented on each resend; forbidden on responses/events. |
+| deadline | string | required on requests | Absolute UTC deadline covering the whole logical request and all retries. Unchanged on resend; forbidden on responses/events. |
 | timestamp | string | yes | UTC |
-| status | string | responses only | `OK` or `ERROR` |
+| status | string | required on responses | `OK` or `ERROR`; forbidden on requests/events |
 | payload | object | yes | Request body, response body, or the error body (`01-conventions.md` §5) |
+
+`correlationId` identifies **one logical service request**, not the whole business flow. A new operation gets a new correlation ID even when it shares a trace ID with earlier calls. One-way events use the documented aggregate/favorite correlation and do not create pending requests. The generated schemas bind each `type` to its exact payload, producer and response channel. Responses require `causationId` and `status`; `OK` carries that operation's success payload and `ERROR` carries the standard error including `httpStatus`. Event envelopes have neither response status nor request-only fields.
 
 ```json
 {
   "messageId": "1d8e0c5a-6a11-4b0e-9a6f-0f2b3e4c5d6e",
   "correlationId": "a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "CREATE_BOOKING",
   "schemaVersion": "1.0",
   "source": "CP",
   "replyTo": "rs.booking.response.v1",
   "attempt": 1,
-  "deadline": "2026-12-01T03:00:10Z",
+  "deadline": "2026-12-01T03:00:45Z",
   "timestamp": "2026-12-01T03:00:00Z",
-  "payload": { "...": "PP-OP-06 request body" }
+  "payload": {
+    "...": "PP-OP-06 request body"
+  },
+  "idempotencyKey": "a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8"
 }
 ```
 
@@ -44,13 +52,17 @@ A response copies `correlationId`, sets `causationId` to the request's `messageI
 {
   "messageId": "6b0e2a71-0000-4000-8000-00000000a102",
   "correlationId": "a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "causationId": "1d8e0c5a-6a11-4b0e-9a6f-0f2b3e4c5d6e",
   "type": "CREATE_BOOKING_RESULT",
   "schemaVersion": "1.0",
   "source": "PP",
   "timestamp": "2026-12-01T03:00:01Z",
   "status": "OK",
-  "payload": { "bookingId": "8c9d0e1f-0000-4000-8000-000000000801", "status": "PENDING_APPROVAL" }
+  "payload": {
+    "bookingId": "8c9d0e1f-0000-4000-8000-000000000801",
+    "status": "PENDING_APPROVAL"
+  }
 }
 ```
 
@@ -64,6 +76,7 @@ The `payload` is the standard error body from `01-conventions.md` Section 5. The
 {
   "messageId": "6b0e2a71-0000-4000-8000-00000000a103",
   "correlationId": "a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "causationId": "1d8e0c5a-6a11-4b0e-9a6f-0f2b3e4c5d6e",
   "type": "CREATE_BOOKING_RESULT",
   "schemaVersion": "1.0",
@@ -106,27 +119,30 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 
 ## 3. Request/response correlation (INT-U02)
 
-1. The requester generates a `correlationId`. It stores `pending:{correlationId}` in Redis with `{type, attempt, deadline, originalPayload}`, TTL = deadline + 60 s.
+1. The requester generates a fresh `correlationId` for this logical operation and retains the business `traceId`. It stores `pending:{source}:{type}:{correlationId}` in Redis with `{expectedResponseType, traceId, idempotencyKey?, attempt, deadline, originalPayload}`. Expire the entry at the absolute deadline + 60 s (`EXPIREAT`, or an equivalent relative duration).
 2. It produces to the request topic, with `replyTo` set to the paired response topic.
-3. The responder processes the request and produces to `replyTo` with the **same** `correlationId` and `status`.
-4. The requester's **dedicated response consumer** looks up `pending:{correlationId}`:
-   - found → complete the waiting call (the REST call from the frontend is answered, or the frontend is pushed via WebSocket) and delete the key.
+3. The responder validates the authenticated producer, message type and paired `replyTo`, then returns the **same** `correlationId` and `traceId`. `causationId` identifies the transport attempt that caused this response.
+4. The requester's **dedicated response consumer** resolves the expected request type and looks up `pending:{source}:{type}:{correlationId}`. It verifies response type, producer and trace before applying it:
+   - found and still waiting → complete the waiting call (the REST call from the frontend is answered, or the frontend is pushed via WebSocket) and delete the key.
    - not found (late duplicate) → log it and ignore it.
-5. Every business result (including validation errors) comes back as a response with `status: ERROR`. Only infrastructure failures cause a timeout.
+5. A successful business result returns `status: OK`. A business rejection, including a validation error, returns `status: ERROR`. Infrastructure failures can cause a timeout. Late results are retained/reconciled by business identity; an expired HTTP waiter does not undo a committed booking.
 
 ## 4. Resend policy (INT-U03)
 
-| Message type | Response timeout | Max attempts | Backoff between attempts |
-|---|---|---|---|
-| Search (`SEARCH_PROVIDERS`, `GET_*`, `LIST_ROOMS`) | 3 s | 3 | 0.5 s, 1 s |
-| Quote, `CREATE_BOOKING`, `CANCEL_BOOKING` | 10 s | 3 | 2 s, 4 s |
-| `GET_BOOKING`, `LIST_BOOKINGS`, `GET_ELIGIBILITY` | 3 s | 3 | 0.5 s, 1 s |
-| `GET_RATING_STATISTICS` (PP-RATING-U02) | 5 s | 3 | 1 s, 2 s |
-| `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s |
+| Message type | Timeout per attempt | Max attempts | Backoff between attempts | Overall budget |
+|---|---|---|---|---|
+| Search (`SEARCH_PROVIDERS`, `GET_BRANCH`, `GET_ROOM`, `LIST_ROOMS`) | 3 s | 3 | 0.5 s, 1 s | 12 s |
+| Quote, `CREATE_BOOKING`, `CANCEL_BOOKING` | 10 s | 3 | 2 s, 4 s | 45 s |
+| `GET_BOOKING`, `LIST_BOOKINGS`, `GET_ELIGIBILITY` | 3 s | 3 | 0.5 s, 1 s | 12 s |
+| `GET_RATING_STATISTICS` (PP-RATING-U02) | 5 s | 3 | 1 s, 2 s | 20 s |
+| `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s | 12 s |
 
-- A resend keeps the **same `correlationId`**, gets a **new `messageId`**, and increments `attempt`.
-- **Idempotent responders:** The responder stores `processed:{type}:{correlationId}` → response in Redis for 24 h. A duplicate request gets the **cached response** again, with no second booking and no second cancellation.
+- Set `deadline = firstSentAt + overallBudget`. A resend keeps the **same `correlationId`, `traceId`, `idempotencyKey` (writes), original payload and deadline**, gets a **new `messageId`**, and increments `attempt`. Never resend after the overall deadline. Booking attempts can start at 0 s, 12 s and 26 s, finishing their attempt windows by 36 s inside the 45 s budget.
+- A responder propagates the remaining deadline to dependencies and caps nested retries to its attempt budget. It must not spend a full 12 s membership-retry budget inside a 10 s booking attempt. Stop initiating new side effects after the overall deadline; reconcile a transaction whose outcome was already in flight.
+- **Idempotent writes:** Store a normalized payload fingerprint and durable outcome under authenticated partner + operation + `idempotencyKey`. A changed body returns `409 IDEMPOTENCY_CONFLICT`. A committed duplicate returns the original result even if the quote has since expired. Persist the booking, consumed quote, order/payment uniqueness and successful idempotency outcome atomically in the booking service's store. Redis is a 24 h acceleration cache, not the only duplicate barrier. A replayed result uses a fresh response envelope matching the current attempt's `causationId`.
+- **Read retries:** Cache a completed result under requester + type + `correlationId` for that logical request only. A fresh read uses a fresh correlation ID and can observe updated booking or rating data. No response cache is indexed by `traceId`.
 - After the last attempt fails, the requester returns `503 SERVICE_UNAVAILABLE` to its own frontend (a controlled failure, BE-U07). For rating statistics, PP shows the last cached statistics marked "stale", or "temporarily unavailable".
+- An ambiguous booking timeout has `refundRequiredByPayer=false`; CP queries PP-OP-08 with its `customerId` and `orderId` and/or replays the original idempotent request. An empty lookup during an unresolved in-flight write is not proof of rejection. CP refunds only after a durable terminal rejection confirms no booking/payment binding exists (PP-03).
 - A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
 
 ## 5. Redundancy and delivery guarantees
@@ -134,7 +150,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 - **Delivery:** at-least-once. Producers use `acks=all` and `enable.idempotence=true`. Consumers commit offsets **after** processing. Responders are idempotent (§4).
 - **PP booking redundancy (PP-BOOK-U01):** Both PP booking-service instances (Machine 1 and Machine 2) join the consumer group `pp-booking-service`. If the primary fails, Kafka rebalances its partitions to the redundant instance, which continues from the last committed offset. CP needs no change. REST traffic from the PP frontend fails over through the API Gateway + service discovery (+ circuit breaker) in the same way.
 - **Ordering:** guaranteed per key. All events for one `bookingId` arrive in order.
-- **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP may consume and produce from a single modular-monolith process or from separate microservices; either way it uses the same groups (for example `cp-search-reply`), so Kafka delivers each response once per group. Neither side needs to know how the other is deployed.
+- **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP may consume and produce from a single modular-monolith process or from separate microservices; either way it uses the same groups (for example `cp-search-reply`). A partition is assigned to one member of a group at a time; at-least-once redelivery remains possible and requires deduplication. Neither side needs to know how the other is deployed.
 
 ## 6. Security and ACLs
 

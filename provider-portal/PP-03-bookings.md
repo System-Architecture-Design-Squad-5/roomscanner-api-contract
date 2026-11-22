@@ -46,14 +46,15 @@
 ### PP validation order
 1. Partner auth + scope → 401/403
 2. Schema → `400 VALIDATION_ERROR`
-3. `quantity ≤ adults + children` → `422 BOOKING_QUANTITY_EXCEEDS_GUESTS`
-4. Quote exists, is not expired, and matches → `409 QUOTE_EXPIRED` / `409 QUOTE_MISMATCH`
-5. `payment.amount == quote.priceBreakdown.total` → `422 PAYMENT_AMOUNT_MISMATCH`
-6. **Medium/Ultimo:** PP verifies the payment **directly with the gateway** (PayPal capture `COMPLETED` / Stripe PaymentIntent `succeeded` and captured, with amount and payee matching). Never trust CP's state alone. → `422 PAYMENT_NOT_CAPTURED`
-7. Convert the hold into a reservation inside one DB transaction (row lock on the room inventory) → `409 INSUFFICIENT_AVAILABILITY` (only if the hold was lost)
-8. Persist the booking as `PENDING_APPROVAL`, store the `AppliedDiscount` and payment references, and emit no event (creation is acknowledged synchronously).
+3. Resolve the durable idempotency record for authenticated partner + `CREATE_BOOKING` + `Idempotency-Key` / Kafka `idempotencyKey`. Same key and normalized body return the original committed result **before** checking quote expiry. Different body → `409 IDEMPOTENCY_CONFLICT`. An in-flight or uncertain outcome → retryable `503 SERVICE_UNAVAILABLE`, `refundRequiredByPayer=false`.
+4. Check the business identities: `(partner, payment.orderId)`, `quoteId` and `(gateway, paymentReference)` may each bind to only one booking, including archived bookings. An identical business request using another transport/key returns the existing booking. Reuse for different booking inputs → `409 ORDER_ALREADY_BOUND`, `QUOTE_ALREADY_CONSUMED` or `PAYMENT_ALREADY_BOUND`, with `refundRequiredByPayer=false`; reconcile the original order instead of refunding a payment already used by it.
+5. Validate `quantity ≤ adults + children`, occupancy, and the quote's customer, room, dates, quantity, adult/child counts and payment mode. The quote must be active, unconsumed and owned by `customer.customerId`. Failure → `422 BOOKING_QUANTITY_EXCEEDS_GUESTS`, `422 OCCUPANCY_EXCEEDED`, `409 QUOTE_EXPIRED` or `409 QUOTE_MISMATCH`.
+6. If the quote applied a Premium discount, call CP-OP-02 again and require active Premium at booking creation (D-06). Membership expiry/change → `409 MEMBERSHIP_ELIGIBILITY_CHANGED`; an unavailable membership service → retryable `503 MEMBERSHIP_VERIFICATION_UNAVAILABLE`. Never silently remove the discount or charge a supplement after capture. Terminal loss of eligibility requires a new quote and CP compensation only after rejection is durable.
+7. Require `payment.amount` (amount **and currency**) to equal the quote total. At Medium/Ultimo, verify the payment directly with the configured gateway. Bind gateway metadata to `quoteId`, `customerId` and CP `orderId`; verify captured amount/currency and that the payment has not been refunded or bound elsewhere. For DIRECT, verify the provider merchant as payee. For ESCROW, verify the shared squad platform owns the PaymentIntent, `chargeReference` is that intent's captured charge, and the intended connected provider matches the quote (PP-05). Failure → `422 PAYMENT_AMOUNT_MISMATCH`, `PAYMENT_REFERENCE_MISMATCH` or `PAYMENT_NOT_CAPTURED`. Never trust the submitted state alone.
+8. In one booking-service transaction, lock the quote and authoritative inventory-allocation rows, recheck expiry/capacity and uniqueness, convert the hold into a reservation, consume the quote, and persist the `PENDING_APPROVAL` booking, discount snapshot, CP order/payment bindings and idempotency outcome. Unique constraints arbitrate concurrent requests with different keys. The inventory allocations/holds and ledger belong to this service's store; do not perform a transaction across another microservice's tables. A lost hold/capacity → `409 INSUFFICIENT_AVAILABILITY`.
+9. Return the committed booking; creation is acknowledged by the response. Subsequent lifecycle transitions use the transactional outbox. Booking-service replicas use the same authoritative booking data and uniqueness constraints.
 
-> Errors at steps 4-7 after a captured payment mean **no booking exists**. CP refunds its own payment (D-14). The error body includes `"refundRequiredByPayer": true`.
+**Compensation rule:** `refundRequiredByPayer=true` is permitted only after PP durably records a terminal rejection and confirms the captured payment/order is not bound to a booking. Atomically mark that quote, CP order and gateway payment as `REJECTED_COMPENSATION_AUTHORIZED` in the durable ledger: no later request, even with a different idempotency key or a renewed membership, may consume those identities. Identical replays return the recorded rejection; a new purchase requires a new quote/order/payment. This closes the create-versus-compensate race. Schema/auth failures, dependency timeouts, in-flight outcomes and duplicate bindings do not by themselves prove this; they must not trigger an automatic refund. A transient failure is retried/reconciled with the original key. See PP-OP-08's `orderId` lookup. Pending **bookings** never expire automatically; only unconsumed quote holds expire.
 
 ### Response `201`
 `BookingSummary` (see `02-shared-types.md`), plus:
@@ -175,11 +176,16 @@
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | true if already paid |
 | 422 | `BOOKING_QUANTITY_EXCEEDS_GUESTS` | true if already paid |
+| 422 | `OCCUPANCY_EXCEEDED` | true only after durable terminal rejection and verified unbound capture |
 | 409 | `QUOTE_EXPIRED` / `QUOTE_MISMATCH` | true if already paid |
-| 422 | `PAYMENT_AMOUNT_MISMATCH` / `PAYMENT_NOT_CAPTURED` | true if any amount was captured |
+| 409 | `MEMBERSHIP_ELIGIBILITY_CHANGED` | true only after durable terminal rejection and verified unbound capture |
+| 409 | `ORDER_ALREADY_BOUND` / `QUOTE_ALREADY_CONSUMED` / `PAYMENT_ALREADY_BOUND` | false; reconcile the original booking |
+| 422 | `PAYMENT_AMOUNT_MISMATCH` / `PAYMENT_REFERENCE_MISMATCH` / `PAYMENT_NOT_CAPTURED` | true only for a verified captured, unbound payment after durable terminal rejection; false if there is no successful capture to return |
 | 409 | `INSUFFICIENT_AVAILABILITY` | true if already paid |
 | 409 | `IDEMPOTENCY_CONFLICT` | false (the original request still stands) |
-| 503 | `SERVICE_UNAVAILABLE` | false. **Retry with the same Idempotency-Key**; the booking may already exist. |
+| 503 | `SERVICE_UNAVAILABLE` / `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | false. **Retry with the same Idempotency-Key**; the booking may already exist. |
+
+The `true if already paid` entries above also require the durable, unbound terminal-rejection check. In particular, a malformed request or a failed dependency response is not sufficient evidence that compensation is safe.
 
 ---
 
@@ -279,6 +285,7 @@ Provides the data CP needs to show its three booking groups (CP-BOOK-S02(b), D-0
 
 | Query field | Type | Required | Notes |
 |---|---|---|---|
+| orderId | string (uuid) | no | Exact CP order ID, scoped to this customer and partner. Used to reconcile a timed-out CreateBooking without knowing its bookingId. |
 | status | BookingStatus[] | no | Default: all |
 | stayFrom / stayTo | string (date) | no | Filter on `checkInDate` |
 | sort | string | no | `CHECK_IN_DESC` (default), `CREATED_DESC` |
@@ -323,6 +330,8 @@ Response: `{ "items": BookingSummary[], "pageInfo": {...} }`
 
 An unknown `customerId` is not an error: the response is `200` with an empty `items` array, so customer existence is not disclosed.
 
+For timeout reconciliation, use `orderId` without status/date filters. It returns the committed booking bound to that CP order, including a booking archived from the provider's workflow. No item during an unresolved in-flight write does not authorize a refund: replay the original idempotent create or wait for PP's durable terminal rejection. The binding/lookup is retained after Redis and quote-hold expiry.
+
 > **Shard routing (PP-SEARCH-U01 style):** Reservations are sharded by **`branch country`**, with a secondary index table `customer_booking_index (customerId → bookingId, shardId)` cached in Redis. A list query touches only the shards that hold that customer's bookings.
 
 ---
@@ -334,7 +343,7 @@ An unknown `customerId` is not an error: the response is `200` with an empty `it
 | REST | `POST /api/v1/partner/bookings/{bookingId}/cancellations` (headers: `Idempotency-Key` **required**) |
 | Kafka | `rs.booking.request.v1` (`type=CANCEL_BOOKING`, key `bookingId`) |
 
-On Kafka, `bookingId` moves from the path into the payload, and the envelope's `correlationId` plays the role of the `Idempotency-Key`.
+On Kafka, `bookingId` moves from the path into the payload. The envelope's **`idempotencyKey`** maps to `Idempotency-Key`; `correlationId` matches this logical request and response, while `traceId` groups the business flow.
 
 **Request (Kafka payload, `type=CANCEL_BOOKING`)**
 

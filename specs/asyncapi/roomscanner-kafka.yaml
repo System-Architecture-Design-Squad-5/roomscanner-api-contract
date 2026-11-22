@@ -335,23 +335,99 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - SEARCH_PROVIDERS
-              - GET_BRANCH
-              - LIST_ROOMS
-              - GET_ROOM
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - SEARCH_PROVIDERS
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.search.response.v1
+              payload:
+                $ref: '#/components/schemas/SearchProvidersRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
               anyOf:
-              - $ref: '#/components/schemas/SearchProvidersRequest'
-              - $ref: '#/components/schemas/GetBranchRequest'
-              - $ref: '#/components/schemas/ListRoomsRequest'
-              - $ref: '#/components/schemas/GetRoomRequest'
-              description: Payload schema selected by the envelope type
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BRANCH
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.search.response.v1
+              payload:
+                $ref: '#/components/schemas/GetBranchRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_ROOMS
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.search.response.v1
+              payload:
+                $ref: '#/components/schemas/ListRoomsRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ROOM
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.search.response.v1
+              payload:
+                $ref: '#/components/schemas/GetRoomRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: CP asks PP for search or catalogue data (PP-OP-01 to PP-OP-04).
       bindings:
         kafka:
@@ -362,14 +438,15 @@ components:
       examples:
       - name: searchProviders
         payload:
-          messageId: e1a2b3c4-0000-4000-8000-00000000a001
-          correlationId: c0ffee00-0000-4000-8000-00000000b001
+          messageId: e1a2b3c4-0000-4000-8000-000000000001
+          correlationId: c0ffee00-0000-4000-8000-000000000001
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: SEARCH_PROVIDERS
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.search.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             city: Hoi An
@@ -380,12 +457,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b100
           correlationId: c0ffee00-0000-4000-8000-00000000b100
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_BRANCH
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.search.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             branchId: 9a8b7c6d-0000-4000-8000-000000000250
@@ -395,12 +473,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b101
           correlationId: c0ffee00-0000-4000-8000-00000000b101
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: LIST_ROOMS
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.search.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             branchId: 9a8b7c6d-0000-4000-8000-000000000250
@@ -413,12 +492,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b102
           correlationId: c0ffee00-0000-4000-8000-00000000b102
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_ROOM
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.search.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             roomId: 3f2e1d0c-0000-4000-8000-000000000301
@@ -435,24 +515,283 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - SEARCH_PROVIDERS_RESULT
-              - GET_BRANCH_RESULT
-              - LIST_ROOMS_RESULT
-              - GET_ROOM_RESULT
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - SEARCH_PROVIDERS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/SearchProvidersResponse'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
               anyOf:
-              - $ref: '#/components/schemas/SearchProvidersResponse'
-              - $ref: '#/components/schemas/BranchDetails'
-              - $ref: '#/components/schemas/RoomListResponse'
-              - $ref: '#/components/schemas/RoomDetail'
-              - $ref: '#/components/schemas/Error'
-              description: Payload schema selected by the envelope type
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - SEARCH_PROVIDERS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BRANCH_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BranchDetails'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BRANCH_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_ROOMS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/RoomListResponse'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_ROOMS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ROOM_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/RoomDetail'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ROOM_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
         description: PP answers a search request with the same correlationId.
       bindings:
         kafka:
@@ -464,12 +803,14 @@ components:
       - name: searchProvidersResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000a101
-          correlationId: c0ffee00-0000-4000-8000-00000000b001
+          correlationId: c0ffee00-0000-4000-8000-000000000001
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: SEARCH_PROVIDERS_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-000000000001
           payload:
             items:
             - providerId: 5b1c2d3e-0000-4000-8000-000000000150
@@ -522,12 +863,14 @@ components:
       - name: getBranchResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b103
-          correlationId: c0ffee00-0000-4000-8000-00000000b103
+          correlationId: c0ffee00-0000-4000-8000-00000000b100
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_BRANCH_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b100
           payload:
             branch:
               providerId: 5b1c2d3e-0000-4000-8000-000000000150
@@ -570,12 +913,14 @@ components:
       - name: listRoomsResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b104
-          correlationId: c0ffee00-0000-4000-8000-00000000b104
+          correlationId: c0ffee00-0000-4000-8000-00000000b101
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: LIST_ROOMS_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b101
           payload:
             items:
             - roomId: 3f2e1d0c-0000-4000-8000-000000000301
@@ -604,12 +949,14 @@ components:
       - name: getRoomResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b105
-          correlationId: c0ffee00-0000-4000-8000-00000000b105
+          correlationId: c0ffee00-0000-4000-8000-00000000b102
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_ROOM_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b102
           payload:
             roomId: 3f2e1d0c-0000-4000-8000-000000000301
             branchId: 9a8b7c6d-0000-4000-8000-000000000250
@@ -681,27 +1028,142 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - CREATE_QUOTE
-              - CREATE_BOOKING
-              - GET_BOOKING
-              - LIST_BOOKINGS
-              - CANCEL_BOOKING
-              - GET_ELIGIBILITY
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_QUOTE
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/QuoteRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            - idempotencyKey
+            not:
               anyOf:
-              - $ref: '#/components/schemas/QuoteRequest'
-              - $ref: '#/components/schemas/CreateBookingRequest'
-              - $ref: '#/components/schemas/GetBookingRequest'
-              - $ref: '#/components/schemas/ListBookingsRequest'
-              - $ref: '#/components/schemas/CancelBookingCommand'
-              - $ref: '#/components/schemas/GetEligibilityRequest'
-              description: Payload schema selected by the envelope type
+              - required:
+                - status
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_BOOKING
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/CreateBookingRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            - idempotencyKey
+            not:
+              anyOf:
+              - required:
+                - status
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BOOKING
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/GetBookingRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_BOOKINGS
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/ListBookingsRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CANCEL_BOOKING
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/CancelBookingCommand'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            - idempotencyKey
+            not:
+              anyOf:
+              - required:
+                - status
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ELIGIBILITY
+              source:
+                enum:
+                - CP
+              replyTo:
+                enum:
+                - rs.booking.response.v1
+              payload:
+                $ref: '#/components/schemas/GetEligibilityRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: CP sends quote, booking, cancellation and booking-query requests (PP-OP-05 to PP-OP-10).
       bindings:
         kafka:
@@ -712,14 +1174,16 @@ components:
       examples:
       - name: createBooking
         payload:
-          messageId: e1a2b3c4-0000-4000-8000-00000000a001
+          messageId: e1a2b3c4-0000-4000-8000-000000000003
           correlationId: a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CREATE_BOOKING
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:45Z'
+          idempotencyKey: a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             quoteId: 1a2b3c4d-0000-4000-8000-000000000501
@@ -754,12 +1218,14 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b106
           correlationId: c0ffee00-0000-4000-8000-00000000b106
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CREATE_QUOTE
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:45Z'
+          idempotencyKey: c0ffee00-0000-4000-8000-00000000b106
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             customerId: 7d1e2f30-0000-4000-8000-000000000901
@@ -778,12 +1244,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b107
           correlationId: c0ffee00-0000-4000-8000-00000000b107
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_BOOKING
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
@@ -792,12 +1259,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b108
           correlationId: c0ffee00-0000-4000-8000-00000000b108
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: LIST_BOOKINGS
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             customerId: 7d1e2f30-0000-4000-8000-000000000901
@@ -811,12 +1279,14 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b109
           correlationId: c0ffee00-0000-4000-8000-00000000b109
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CANCEL_BOOKING
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:45Z'
+          idempotencyKey: c0ffee00-0000-4000-8000-00000000b109
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
@@ -826,12 +1296,13 @@ components:
         payload:
           messageId: e1a2b3c4-0000-4000-8000-00000000b10a
           correlationId: c0ffee00-0000-4000-8000-00000000b10a
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_ELIGIBILITY
           schemaVersion: '1.0'
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
@@ -846,27 +1317,421 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - CREATE_QUOTE_RESULT
-              - CREATE_BOOKING_RESULT
-              - GET_BOOKING_RESULT
-              - LIST_BOOKINGS_RESULT
-              - CANCEL_BOOKING_RESULT
-              - GET_ELIGIBILITY_RESULT
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_QUOTE_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Quote'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
               anyOf:
-              - $ref: '#/components/schemas/Quote'
-              - $ref: '#/components/schemas/Booking'
-              - $ref: '#/components/schemas/BookingSummary'
-              - $ref: '#/components/schemas/BookingListResponse'
-              - $ref: '#/components/schemas/ReviewEligibility'
-              - $ref: '#/components/schemas/Error'
-              description: Payload schema selected by the envelope type
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_QUOTE_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Booking'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CREATE_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingSummary'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_BOOKINGS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingListResponse'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - LIST_BOOKINGS_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CANCEL_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingSummary'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - CANCEL_BOOKING_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ELIGIBILITY_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/ReviewEligibility'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_ELIGIBILITY_RESULT
+              source:
+                enum:
+                - PP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
         description: PP answers a booking request with the same correlationId.
       bindings:
         kafka:
@@ -879,11 +1744,13 @@ components:
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000a102
           correlationId: a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CREATE_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-000000000003
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
             bookingCode: RS-VN-24F7Q
@@ -922,6 +1789,7 @@ components:
                 currency: USD
             payment:
               mode: ESCROW
+              orderId: 55aa66bb-0000-4000-8000-000000000701
               originalPaymentReference: pi_3QAbCdTEST0001
               escrowStatus: HELD
               returnPaymentStatus: NOT_REQUIRED
@@ -935,11 +1803,13 @@ components:
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000a103
           correlationId: a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CREATE_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: ERROR
+          causationId: e1a2b3c4-0000-4000-8000-000000000003
           payload:
             error:
               code: QUOTE_EXPIRED
@@ -951,12 +1821,14 @@ components:
       - name: createQuoteResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10b
-          correlationId: c0ffee00-0000-4000-8000-00000000b10b
+          correlationId: c0ffee00-0000-4000-8000-00000000b106
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CREATE_QUOTE_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b106
           payload:
             quoteId: 1a2b3c4d-0000-4000-8000-000000000501
             roomId: 3f2e1d0c-0000-4000-8000-000000000301
@@ -997,12 +1869,14 @@ components:
       - name: getBookingResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10c
-          correlationId: c0ffee00-0000-4000-8000-00000000b10c
+          correlationId: c0ffee00-0000-4000-8000-00000000b107
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b107
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
             bookingCode: RS-VN-24F7Q
@@ -1041,6 +1915,7 @@ components:
                 currency: USD
             payment:
               mode: ESCROW
+              orderId: 55aa66bb-0000-4000-8000-000000000701
               originalPaymentReference: pi_3QAbCdTEST0001
               escrowStatus: HELD
               returnPaymentStatus: NOT_REQUIRED
@@ -1049,12 +1924,14 @@ components:
       - name: listBookingsResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10d
-          correlationId: c0ffee00-0000-4000-8000-00000000b10d
+          correlationId: c0ffee00-0000-4000-8000-00000000b108
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: LIST_BOOKINGS_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b108
           payload:
             items:
             - bookingId: 8c9d0e1f-0000-4000-8000-000000000801
@@ -1106,12 +1983,14 @@ components:
       - name: cancelBookingResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10e
-          correlationId: c0ffee00-0000-4000-8000-00000000b10e
+          correlationId: c0ffee00-0000-4000-8000-00000000b109
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: CANCEL_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b109
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
             bookingCode: RS-VN-24F7Q
@@ -1162,12 +2041,14 @@ components:
       - name: getEligibilityResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10f
-          correlationId: c0ffee00-0000-4000-8000-00000000b10f
+          correlationId: c0ffee00-0000-4000-8000-00000000b10a
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_ELIGIBILITY_RESULT
           schemaVersion: '1.0'
           source: PP
           timestamp: '2026-12-01T03:00:01Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-00000000b10a
           payload:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
             customerId: 7d1e2f30-0000-4000-8000-000000000901
@@ -1190,19 +2071,147 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - BOOKING_CONFIRMED
-              - BOOKING_CANCELLED
-              - BOOKING_COMPLETED
-              - RETURN_PAYMENT_UPDATED
-              - ESCROW_RELEASE_UPDATED
-              description: Message type
-            payload:
-              $ref: '#/components/schemas/BookingStatusEvent'
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - BOOKING_CONFIRMED
+              source:
+                enum:
+                - PP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingStatusEvent'
+                - type: object
+                  properties:
+                    eventType:
+                      enum:
+                      - BOOKING_CONFIRMED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - BOOKING_CANCELLED
+              source:
+                enum:
+                - PP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingStatusEvent'
+                - type: object
+                  properties:
+                    eventType:
+                      enum:
+                      - BOOKING_CANCELLED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - BOOKING_COMPLETED
+              source:
+                enum:
+                - PP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingStatusEvent'
+                - type: object
+                  properties:
+                    eventType:
+                      enum:
+                      - BOOKING_COMPLETED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - RETURN_PAYMENT_UPDATED
+              source:
+                enum:
+                - PP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingStatusEvent'
+                - type: object
+                  properties:
+                    eventType:
+                      enum:
+                      - RETURN_PAYMENT_UPDATED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - ESCROW_RELEASE_UPDATED
+              source:
+                enum:
+                - PP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/BookingStatusEvent'
+                - type: object
+                  properties:
+                    eventType:
+                      enum:
+                      - ESCROW_RELEASE_UPDATED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: PP publishes every booking transition (PP-OP-11).
       bindings:
         kafka:
@@ -1215,6 +2224,7 @@ components:
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e1
           correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: BOOKING_CONFIRMED
           schemaVersion: '1.0'
           source: PP
@@ -1288,6 +2298,7 @@ components:
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e4
           correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: BOOKING_CANCELLED
           schemaVersion: '1.0'
           source: PP
@@ -1364,6 +2375,7 @@ components:
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e5
           correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: RETURN_PAYMENT_UPDATED
           schemaVersion: '1.0'
           source: PP
@@ -1425,6 +2437,7 @@ components:
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e6
           correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: ESCROW_RELEASE_UPDATED
           schemaVersion: '1.0'
           source: PP
@@ -1482,6 +2495,7 @@ components:
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e7
           correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: BOOKING_COMPLETED
           schemaVersion: '1.0'
           source: PP
@@ -1535,6 +2549,72 @@ components:
                 returnPaymentStatus: NOT_REQUIRED
               createdAt: '2026-12-01T03:02:12Z'
               updatedAt: '2027-04-13T19:00:00Z'
+      - name: refundAfterTransferReversal
+        payload:
+          messageId: 11112222-0000-4000-8000-0000000000e8
+          correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
+          type: RETURN_PAYMENT_UPDATED
+          schemaVersion: '1.0'
+          source: PP
+          timestamp: '2026-12-03T05:01:00Z'
+          payload:
+            eventId: 11112222-0000-4000-8000-000000000008
+            eventType: RETURN_PAYMENT_UPDATED
+            occurredAt: '2026-12-03T05:01:00Z'
+            sequence: 5
+            booking:
+              bookingId: 8c9d0e1f-0000-4000-8000-000000000801
+              bookingCode: RS-VN-24F7Q
+              status: CANCELLED
+              customerId: 7d1e2f30-0000-4000-8000-000000000901
+              providerId: 5b1c2d3e-0000-4000-8000-000000000150
+              branchId: 9a8b7c6d-0000-4000-8000-000000000250
+              roomId: 3f2e1d0c-0000-4000-8000-000000000301
+              providerName: Thu Bon Family Stays
+              branchName: Riverside Homestay Hoi An
+              roomName: Garden Single Room
+              checkInDate: '2027-04-10'
+              checkOutDate: '2027-04-13'
+              quantity: 2
+              adults: 3
+              children: 1
+              priceBreakdown:
+                nights: 3
+                quantity: 2
+                unitPricePerNight:
+                  amountMinor: 2500
+                  currency: USD
+                subtotal:
+                  amountMinor: 15000
+                  currency: USD
+                discount:
+                  discountPackageId: d15c0a7e-0000-4000-8000-000000000015
+                  name: Premium 15% Off
+                  type: PERCENTAGE
+                  value: 15
+                  amount:
+                    amountMinor: 2250
+                    currency: USD
+                total:
+                  amountMinor: 12750
+                  currency: USD
+              payment:
+                mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
+                originalPaymentReference: pi_3QAbCdTEST0001
+                escrowStatus: REFUNDED
+                releaseReference: tr_1QXyzTEST0001
+                transferReversalStatus: SUCCEEDED
+                transferReversalReference: trr_1QXyzTEST0001
+                returnPaymentStatus: SUCCEEDED
+                returnPaymentReference: re_3QAbCdTEST0001
+              createdAt: '2026-12-01T03:02:12Z'
+              updatedAt: '2026-12-03T05:01:00Z'
+              cancellation:
+                cancelledBy: CUSTOMER
+                reason: Change of travel plans
+                cancelledAt: '2026-12-03T05:00:00Z'
     RatingStatisticsRequest:
       name: RatingStatisticsRequest
       title: Rating statistics request
@@ -1545,15 +2625,30 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - GET_RATING_STATISTICS
-              description: Message type
-            payload:
-              $ref: '#/components/schemas/RatingStatisticsRequest'
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_RATING_STATISTICS
+              source:
+                enum:
+                - PP
+              replyTo:
+                enum:
+                - rs.rating-stats.response.v1
+              payload:
+                $ref: '#/components/schemas/RatingStatisticsRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: PP asks CP for provider statistics on demand (CP-OP-01).
       bindings:
         kafka:
@@ -1566,12 +2661,13 @@ components:
         payload:
           messageId: 0c4a7d22-0000-4000-8000-00000000c001
           correlationId: 0c4a7d22-0000-4000-8000-00000000c0aa
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_RATING_STATISTICS
           schemaVersion: '1.0'
           source: PP
           replyTo: rs.rating-stats.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:20Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             providerId: 5b1c2d3e-0000-4000-8000-000000000150
@@ -1591,18 +2687,76 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - GET_RATING_STATISTICS_RESULT
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_RATING_STATISTICS_RESULT
+              source:
+                enum:
+                - CP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/RatingStatistics'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
               anyOf:
-              - $ref: '#/components/schemas/RatingStatistics'
-              - $ref: '#/components/schemas/Error'
-              description: Payload schema selected by the envelope type
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_RATING_STATISTICS_RESULT
+              source:
+                enum:
+                - CP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
         description: CP answers with the same correlationId.
       bindings:
         kafka:
@@ -1615,11 +2769,13 @@ components:
         payload:
           messageId: 0c4a7d22-0000-4000-8000-00000000c002
           correlationId: 0c4a7d22-0000-4000-8000-00000000c0aa
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_RATING_STATISTICS_RESULT
           schemaVersion: '1.0'
           source: CP
           timestamp: '2026-12-01T03:00:00Z'
           status: OK
+          causationId: 0c4a7d22-0000-4000-8000-00000000c001
           payload:
             providerId: 5b1c2d3e-0000-4000-8000-000000000150
             asOf: '2026-12-01T04:00:00Z'
@@ -1697,15 +2853,30 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - GET_MEMBERSHIP
-              description: Message type
-            payload:
-              $ref: '#/components/schemas/MembershipRequest'
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_MEMBERSHIP
+              source:
+                enum:
+                - PP
+              replyTo:
+                enum:
+                - rs.membership.response.v1
+              payload:
+                $ref: '#/components/schemas/MembershipRequest'
+            required:
+            - replyTo
+            - attempt
+            - deadline
+            not:
+              anyOf:
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: PP verifies a customer's membership (CP-OP-02).
       bindings:
         kafka:
@@ -1716,14 +2887,15 @@ components:
       examples:
       - name: request
         payload:
-          messageId: e1a2b3c4-0000-4000-8000-00000000a001
-          correlationId: c0ffee00-0000-4000-8000-00000000b001
+          messageId: e1a2b3c4-0000-4000-8000-000000000009
+          correlationId: c0ffee00-0000-4000-8000-000000000009
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_MEMBERSHIP
           schemaVersion: '1.0'
           source: PP
           replyTo: rs.membership.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:10Z'
+          deadline: '2026-12-01T03:00:12Z'
           timestamp: '2026-12-01T03:00:00Z'
           payload:
             customerId: 7d1e2f30-0000-4000-8000-000000000901
@@ -1737,18 +2909,76 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - GET_MEMBERSHIP_RESULT
-              description: Message type
-            payload:
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_MEMBERSHIP_RESULT
+              source:
+                enum:
+                - CP
+              status:
+                enum:
+                - OK
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Membership'
+                - not:
+                    anyOf:
+                    - required:
+                      - error
+            required:
+            - status
+            - causationId
+            not:
               anyOf:
-              - $ref: '#/components/schemas/Membership'
-              - $ref: '#/components/schemas/Error'
-              description: Payload schema selected by the envelope type
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - GET_MEMBERSHIP_RESULT
+              source:
+                enum:
+                - CP
+              status:
+                enum:
+                - ERROR
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/Error'
+                - type: object
+                  properties:
+                    error:
+                      type: object
+                      properties:
+                        httpStatus:
+                          type: integer
+                          minimum: 400
+                          maximum: 599
+                      required:
+                      - httpStatus
+            required:
+            - status
+            - causationId
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - idempotencyKey
         description: CP answers with the same correlationId.
       bindings:
         kafka:
@@ -1760,12 +2990,14 @@ components:
       - name: result
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000a104
-          correlationId: c0ffee00-0000-4000-8000-00000000b001
+          correlationId: c0ffee00-0000-4000-8000-000000000009
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: GET_MEMBERSHIP_RESULT
           schemaVersion: '1.0'
           source: CP
           timestamp: '2026-12-01T03:00:00Z'
           status: OK
+          causationId: e1a2b3c4-0000-4000-8000-000000000009
           payload:
             customerId: 7d1e2f30-0000-4000-8000-000000000901
             tier: PREMIUM
@@ -1782,17 +3014,91 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - FAVORITE_ADDED
-              - FAVORITE_REMOVED
-              - EVENT_DATES_CHANGED
-              description: Message type
-            payload:
-              $ref: '#/components/schemas/EventFavoriteChanged'
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - FAVORITE_ADDED
+              source:
+                enum:
+                - CP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/EventFavoriteChanged'
+                - type: object
+                  properties:
+                    changeType:
+                      enum:
+                      - FAVORITE_ADDED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - FAVORITE_REMOVED
+              source:
+                enum:
+                - CP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/EventFavoriteChanged'
+                - type: object
+                  properties:
+                    changeType:
+                      enum:
+                      - FAVORITE_REMOVED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+          - type: object
+            properties:
+              type:
+                enum:
+                - EVENT_DATES_CHANGED
+              source:
+                enum:
+                - CP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/EventFavoriteChanged'
+                - type: object
+                  properties:
+                    changeType:
+                      enum:
+                      - EVENT_DATES_CHANGED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed (CP-OP-05).
       bindings:
         kafka:
@@ -1805,6 +3111,7 @@ components:
         payload:
           messageId: 3e550000-0000-4000-8000-000000000d01
           correlationId: fa7e0000-0000-4000-8000-000000000b02
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: FAVORITE_ADDED
           schemaVersion: '1.0'
           source: CP
@@ -1829,6 +3136,7 @@ components:
         payload:
           messageId: 3e550000-0000-4000-8000-000000000d02
           correlationId: fa7e0000-0000-4000-8000-000000000b02
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: FAVORITE_REMOVED
           schemaVersion: '1.0'
           source: CP
@@ -1852,6 +3160,7 @@ components:
         payload:
           messageId: 3e550000-0000-4000-8000-000000000d03
           correlationId: e7e70000-0000-4000-8000-000000000c01
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: EVENT_DATES_CHANGED
           schemaVersion: '1.0'
           source: CP
@@ -1879,15 +3188,29 @@ components:
       payload:
         allOf:
         - $ref: '#/components/schemas/KafkaEnvelope'
-        - type: object
-          properties:
-            type:
-              type: string
-              enum:
-              - REGIONAL_EVENT_NOTIFICATION
-              description: Message type
-            payload:
-              $ref: '#/components/schemas/RegionalEventNotification'
+        - oneOf:
+          - type: object
+            properties:
+              type:
+                enum:
+                - REGIONAL_EVENT_NOTIFICATION
+              source:
+                enum:
+                - PP
+              payload:
+                $ref: '#/components/schemas/RegionalEventNotification'
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
         description: PP publishes the top-2 suggestions for a favorited event at the agreed time (PP-OP-13).
       bindings:
         kafka:
@@ -1900,6 +3223,7 @@ components:
         payload:
           messageId: 3e550000-0000-4000-8000-000000000e01
           correlationId: fa7e0000-0000-4000-8000-000000000b02
+          traceId: 7ace0000-0000-4000-8000-000000000001
           type: REGIONAL_EVENT_NOTIFICATION
           schemaVersion: '1.0'
           source: PP
@@ -2456,9 +3780,11 @@ components:
         paymentReference:
           type: string
           description: 'Required for DIRECT and ESCROW: PayPal capture ID or Stripe PaymentIntent ID'
+          minLength: 1
         chargeReference:
           type: string
           description: 'ESCROW only: Stripe Charge ID'
+          minLength: 1
         state:
           $ref: '#/components/schemas/PaymentState'
         amount:
@@ -2475,31 +3801,174 @@ components:
       - orderId
       - state
       - amount
+      oneOf:
+      - properties:
+          mode:
+            enum:
+            - SIMULATED
+          gateway:
+            enum:
+            - NONE
+          state:
+            enum:
+            - SIMULATED_ISSUED
+        not:
+          anyOf:
+          - required:
+            - paymentReference
+          - required:
+            - chargeReference
+          - required:
+            - paidAt
+      - properties:
+          mode:
+            enum:
+            - DIRECT
+          gateway:
+            enum:
+            - PAYPAL_SANDBOX
+          state:
+            enum:
+            - CAPTURED
+        required:
+        - paymentReference
+        - paidAt
+        not:
+          anyOf:
+          - required:
+            - chargeReference
+      - properties:
+          mode:
+            enum:
+            - ESCROW
+          gateway:
+            enum:
+            - STRIPE_SANDBOX
+          state:
+            enum:
+            - CAPTURED_HELD
+        required:
+        - paymentReference
+        - chargeReference
+        - paidAt
+    TransferReversalStatus:
+      type: string
+      enum:
+      - NOT_REQUIRED
+      - PENDING
+      - SUCCEEDED
+      - FAILED
+      description: Recovery of a previously released Stripe transfer; separate from the customer refund outcome.
     BookingPaymentStatus:
       type: object
       description: Beneficiary-side payment status of a booking.
       properties:
         mode:
           $ref: '#/components/schemas/PaymentMode'
+        orderId:
+          type: string
+          description: Original CP order ID; retained for reconciliation
+          format: uuid
         originalPaymentReference:
           type: string
           description: Preserved after cancellation (PP-MONEY-M03)
+          minLength: 1
         escrowStatus:
           $ref: '#/components/schemas/EscrowReleaseStatus'
         releaseReference:
           type: string
           description: Stripe Transfer ID once released (ESCROW)
+          minLength: 1
+        transferReversalStatus:
+          $ref: '#/components/schemas/TransferReversalStatus'
+        transferReversalReference:
+          type: string
+          description: Stripe TransferReversal ID (trr_...), retained after a successful reversal
+          minLength: 1
+        transferReversalFailureCause:
+          type: string
+          description: Failure to recover a released transfer; distinct from a refund failure
+          minLength: 1
         returnPaymentStatus:
           $ref: '#/components/schemas/ReturnPaymentStatus'
         returnPaymentReference:
           type: string
           description: PayPal payout batch ID or Stripe Refund ID. Separate from the original payment.
+          minLength: 1
         failureCause:
           type: string
           description: Gateway failure reason, when available
       required:
       - mode
       - returnPaymentStatus
+      allOf:
+      - oneOf:
+        - properties:
+            mode:
+              enum:
+              - SIMULATED
+        - properties:
+            mode:
+              enum:
+              - DIRECT
+          required:
+          - originalPaymentReference
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+          required:
+          - originalPaymentReference
+          - escrowStatus
+      - oneOf:
+        - not:
+            anyOf:
+            - required:
+              - transferReversalStatus
+            - required:
+              - transferReversalReference
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - NOT_REQUIRED
+              - PENDING
+          required:
+          - transferReversalStatus
+          not:
+            anyOf:
+            - required:
+              - transferReversalReference
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - transferReversalStatus
+          - transferReversalReference
+          not:
+            anyOf:
+            - required:
+              - transferReversalFailureCause
+        - properties:
+            mode:
+              enum:
+              - ESCROW
+            transferReversalStatus:
+              enum:
+              - FAILED
+          required:
+          - transferReversalStatus
+          - transferReversalFailureCause
     CancellationInfo:
       type: object
       properties:
@@ -3440,6 +4909,10 @@ components:
         customerId:
           type: string
           format: uuid
+        orderId:
+          type: string
+          description: Optional exact CP-order lookup for timeout reconciliation
+          format: uuid
         status:
           type: array
           items:
@@ -3545,6 +5018,34 @@ components:
       required:
       - changeType
       - event
+      oneOf:
+      - properties:
+          changeType:
+            enum:
+            - FAVORITE_ADDED
+        required:
+        - favoriteId
+        - customerId
+        - favoritedAt
+      - properties:
+          changeType:
+            enum:
+            - FAVORITE_REMOVED
+        required:
+        - favoriteId
+        - customerId
+      - properties:
+          changeType:
+            enum:
+            - EVENT_DATES_CHANGED
+        not:
+          anyOf:
+          - required:
+            - favoriteId
+          - required:
+            - customerId
+          - required:
+            - favoritedAt
     RegionalEventNotification:
       type: object
       description: PP-OP-13 payload.
@@ -3604,6 +5105,15 @@ components:
           type: string
           description: Set by the requester; copied into the response; unchanged on resend
           format: uuid
+        traceId:
+          type: string
+          description: Business-flow trace shared by related logical requests and events; never a pending-request or deduplication
+            key
+          format: uuid
+        idempotencyKey:
+          type: string
+          description: Required for CREATE_QUOTE, CREATE_BOOKING and CANCEL_BOOKING; unchanged across retries
+          format: uuid
         causationId:
           type: string
           description: messageId of the message that caused this one
@@ -3647,6 +5157,7 @@ components:
       required:
       - messageId
       - correlationId
+      - traceId
       - type
       - schemaVersion
       - source

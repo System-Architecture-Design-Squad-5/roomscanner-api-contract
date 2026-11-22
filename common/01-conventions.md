@@ -37,17 +37,20 @@ At Ultimo, the gateway resolves partner routes through **service discovery** (BE
 |---|---|---|---|
 | `Authorization: Bearer <partnerToken>` | request | Medium+ | Partner access token (§4) |
 | `X-Request-Id` | request/response | yes | UUID per HTTP call. The server echoes it. |
-| `X-Correlation-Id` | request/response | yes | UUID shared by every call in one business flow (e.g. quote → booking → events) |
-| `Idempotency-Key` | request | yes on `POST` that creates or cancels | UUID. A retry with the same key returns the **original** result without a second side effect. Kept for 24 h in Redis. |
+| `X-Correlation-Id` | request/response | yes | UUID for one logical operation and its response; unchanged only across retries of that operation. Maps to Kafka `correlationId`. |
+| `X-Trace-Id` | request/response | yes | Business-flow UUID shared by related operations, e.g. quote → booking → events. Maps to Kafka `traceId`; never used to match pending requests or deduplicate writes. |
+| `Idempotency-Key` | request | yes on `POST` that creates or cancels | UUID scoped to authenticated partner + operation. Same key and normalized body replay the original outcome; changed body returns `409 IDEMPOTENCY_CONFLICT`. Maps to Kafka `idempotencyKey`. Redis may cache outcomes for 24 h; durable booking/order/payment uniqueness remains after cache expiry. |
 | `X-RS-Signature` | webhook request | Medium+ | HMAC signature for PP → CP webhooks (§4.3) |
 | `X-RateLimit-Limit` / `-Remaining` / `-Reset` | response | yes | Rate-limit status (§7) |
 | `Retry-After` | response | on 429/503 | Seconds before the client should retry |
 
 ## 4. Partner authentication and authorization (INT-M03)
 
-### 4.1 Partner access token (client-credentials)
+### 4.1 Partner access token (custom JSON credential exchange)
 
 Each subsystem issues tokens for its own partner API. The calling subsystem exchanges a **client ID and secret** (shared out-of-band, held in environment variables and never committed) for a short-lived token.
+
+This is a **custom JSON token endpoint**, using the camelCase fields below. It is not an OAuth2 token endpoint: no OAuth2 `grant_type`, form encoding, or automatic OAuth2 authorization flow is advertised. OpenAPI declares `partnerBearer` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). Each operation's `x-required-scopes` extension records the scopes enforced by the gateway. Bearer security requirements use an empty scope array in OpenAPI; the custom extension and the scope table below define authorization.
 
 **`POST /api/v1/partner/auth/token`**
 
@@ -198,6 +201,8 @@ These are applied per partner `clientId` at the API Gateway with a Redis-backed 
 | GET (safe) | 3 s | Up to 2, exponential backoff (200 ms, 800 ms) on 503/504/network errors |
 | POST with `Idempotency-Key` | 10 s | Up to 2, **same key**, on 503/504/network errors |
 | Never retried | N/A | 4xx responses other than 429 |
+
+For an Ultimo HTTP-to-Kafka bridge, the caller/waiter timeout is the Kafka operation's overall budget plus 5 s (50 s for booking writes; see `04-kafka.md` Section 4). This overrides the direct-REST defaults above. Do not start a second logical write because its HTTP waiter timed out: preserve its idempotency key and reconcile its CP order before any compensation. Responses echo `X-Correlation-Id` and `X-Trace-Id` when supplied.
 
 ## 9. Versioning
 
