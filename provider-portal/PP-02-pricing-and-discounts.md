@@ -6,7 +6,7 @@
 
 ## Why a quote?
 PP owns the discount packages and room policies, so **PP calculates the price** and CP charges exactly that amount. The quote also:
-1. puts a **15-minute hold** on the requested quantity, so a paid booking cannot fail for availability (D-14);
+1. puts a **15-minute hold** on the requested quantity to reduce the risk of a paid booking failing for availability (D-14);
 2. gives CP the **payee account** for the payment (D-07), without exposing provider payment data in public search.
 
 ---
@@ -40,7 +40,7 @@ PP owns the discount packages and room policies, so **PP calculates the price** 
 | quantity / adults / children | integer | |
 | priceBreakdown | PriceBreakdown | `total` is the amount CP must charge |
 | membershipVerified | boolean | `true` when CP-OP-02 confirmed an active Premium membership |
-| payee | object | `{ gateway, payeeAccountId, payeeDisplayName }`. Omitted for `SIMULATED`. |
+| payee | object | `{ gateway, payeeAccountId, payeeDisplayName }`. Omitted for `SIMULATED`. For ESCROW this identifies the intended connected provider for a **later PP release**; CP captures into the configured squad platform, not this connected account. |
 | holdExpiresAt | string | UTC, `createdAt` + 15 min |
 | createdAt | string | |
 
@@ -128,7 +128,8 @@ The `priceBreakdown` has no `discount` field, and `total` = `subtotal`. `members
 | 503 | `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | CP-OP-02 unreachable **and** the customer claims Premium. PP refuses to guess (fail closed). CP may retry or quote as Standard. |
 
 ### Rules
-- **Idempotent:** The same `Idempotency-Key` returns the same quote while the hold is valid.
+- **Idempotent:** The same `Idempotency-Key` and body replay the original quote, including its original `holdExpiresAt`; replay never extends or recreates a hold. CP checks that expiry before capture and requests a new quote/key if it is no longer active.
+- Store the quote's customer, room, dates, quantity, tourist counts, payment mode, price/membership snapshot and hold identity. Validate capacity and insert/replace the hold atomically. The authoritative hold lives in the booking service's store; Redis may accelerate expiry detection.
 - **Expiry:** After `holdExpiresAt`, the hold is released by a Redis key-expiry listener plus a sweeper job. A booking that references the quote then fails with `QUOTE_EXPIRED`.
 - **Policy cancelled while a quote is open:** The quote keeps its price until it expires (D-06).
 - One active hold per `customerId` + `roomId`. A new quote replaces the previous hold.

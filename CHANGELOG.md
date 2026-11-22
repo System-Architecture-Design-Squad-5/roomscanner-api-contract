@@ -2,6 +2,18 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
+## [Unreleased] - 2026-11-22 (unsigned Milestone 1 draft corrections)
+
+### Corrected
+- Bound Kafka message types, producers, paired reply topics, request metadata and response success/error payloads in generated schemas. Enforced mode-specific payment fields and favorite-event fields.
+- Separated the business-flow `traceId` / `X-Trace-Id` from one logical request's `correlationId`; added explicit stable write `idempotencyKey`. Defined overall retry budgets (12/20/45 seconds), durable write replay and safe timeout reconciliation; corrected successful results to `status: OK`.
+- Defined quote ownership/one-time consumption, durable CP-order and gateway-payment uniqueness, creation-time Premium checks, and a durable terminal-rejection barrier before payer compensation. Added exact customer-order filtering to the existing booking-list operation.
+- Specified one squad-owned Stripe Connect sandbox platform with separate service credentials, payment metadata/ownership verification, webhook responsibilities, and independent transfer-reversal versus customer-refund references and outcomes.
+- Preserved the custom JSON token endpoint and represented it as HTTP bearer authentication with explicit `x-required-scopes`, replacing the incompatible OAuth2 declaration.
+- Updated JSON examples and regenerated OpenAPI/AsyncAPI files. Added repeatable validation and malformed-payload regression checks.
+
+These are pre-sign-off corrections to the v1.0.0 **draft**, including new required envelope fields. Existing operation paths/topics are retained; both teams must review the revised baseline before adoption. No sign-off, country selection or PMS agreement is asserted by this change.
+
 ## [1.0.0] - 2026-11-20 (Milestone 1 baseline)
 
 ### Added

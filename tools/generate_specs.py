@@ -1,9 +1,11 @@
 """Generate the OpenAPI and AsyncAPI specifications for the RoomScanner squad API contract.
 
 One schema dictionary feeds all three files so field names and types cannot drift.
-Usage (from the repository root):  pip install pyyaml==6.0.2  then  python tools/generate_specs.py .
+Usage (from the repository root): python -m pip install -r tools/requirements-validation.txt
+                                 python tools/generate_specs.py .
 """
 import copy
+from datetime import datetime, timedelta
 import json
 import pathlib
 import re
@@ -82,6 +84,11 @@ def enum(values, desc):
 def described(schema_ref, desc):
     """Attach a description to a $ref (OpenAPI 3.0 ignores siblings of $ref, so wrap in allOf)."""
     return {"allOf": [schema_ref], "description": desc}
+
+
+def absent(*names):
+    """OpenAPI 3.0-compatible prohibition of context-inappropriate fields."""
+    return {"not": {"anyOf": [{"required": [name]} for name in names]}}
 
 
 TIME_HHMM = s("Local time, HH:mm", pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
@@ -229,22 +236,56 @@ S["PaymentInfo"] = obj({
     "mode": ref("PaymentMode"),
     "gateway": ref("PaymentGateway"),
     "orderId": uuid("CP order ID (payer side)"),
-    "paymentReference": s("Required for DIRECT and ESCROW: PayPal capture ID or Stripe PaymentIntent ID"),
-    "chargeReference": s("ESCROW only: Stripe Charge ID"),
+    "paymentReference": s("Required for DIRECT and ESCROW: PayPal capture ID or Stripe PaymentIntent ID", minLength=1),
+    "chargeReference": s("ESCROW only: Stripe Charge ID", minLength=1),
     "state": ref("PaymentState"),
     "amount": described(ref("Money"), "Must equal the quote's priceBreakdown.total"),
     "paidAt": dt("Required for DIRECT and ESCROW"),
 }, ["mode", "gateway", "orderId", "state", "amount"], "Payer-side payment information sent by CP with CreateBooking.")
+S["PaymentInfo"]["oneOf"] = [
+    {"properties": {"mode": {"enum": ["SIMULATED"]}, "gateway": {"enum": ["NONE"]},
+                    "state": {"enum": ["SIMULATED_ISSUED"]}},
+     **absent("paymentReference", "chargeReference", "paidAt")},
+    {"properties": {"mode": {"enum": ["DIRECT"]}, "gateway": {"enum": ["PAYPAL_SANDBOX"]},
+                    "state": {"enum": ["CAPTURED"]}},
+     "required": ["paymentReference", "paidAt"], **absent("chargeReference")},
+    {"properties": {"mode": {"enum": ["ESCROW"]}, "gateway": {"enum": ["STRIPE_SANDBOX"]},
+                    "state": {"enum": ["CAPTURED_HELD"]}},
+     "required": ["paymentReference", "chargeReference", "paidAt"]},
+]
+
+S["TransferReversalStatus"] = enum(["NOT_REQUIRED", "PENDING", "SUCCEEDED", "FAILED"],
+    "Recovery of a previously released Stripe transfer; separate from the customer refund outcome.")
 
 S["BookingPaymentStatus"] = obj({
     "mode": ref("PaymentMode"),
-    "originalPaymentReference": s("Preserved after cancellation (PP-MONEY-M03)"),
+    "orderId": uuid("Original CP order ID; retained for reconciliation"),
+    "originalPaymentReference": s("Preserved after cancellation (PP-MONEY-M03)", minLength=1),
     "escrowStatus": ref("EscrowReleaseStatus"),
-    "releaseReference": s("Stripe Transfer ID once released (ESCROW)"),
+    "releaseReference": s("Stripe Transfer ID once released (ESCROW)", minLength=1),
+    "transferReversalStatus": ref("TransferReversalStatus"),
+    "transferReversalReference": s("Stripe TransferReversal ID (trr_...), retained after a successful reversal", minLength=1),
+    "transferReversalFailureCause": s("Failure to recover a released transfer; distinct from a refund failure", minLength=1),
     "returnPaymentStatus": ref("ReturnPaymentStatus"),
-    "returnPaymentReference": s("PayPal payout batch ID or Stripe Refund ID. Separate from the original payment."),
+    "returnPaymentReference": s("PayPal payout batch ID or Stripe Refund ID. Separate from the original payment.", minLength=1),
     "failureCause": s("Gateway failure reason, when available"),
 }, ["mode", "returnPaymentStatus"], "Beneficiary-side payment status of a booking.")
+S["BookingPaymentStatus"]["allOf"] = [
+    {"oneOf": [
+        {"properties": {"mode": {"enum": ["SIMULATED"]}}},
+        {"properties": {"mode": {"enum": ["DIRECT"]}}, "required": ["originalPaymentReference"]},
+        {"properties": {"mode": {"enum": ["ESCROW"]}}, "required": ["originalPaymentReference", "escrowStatus"]},
+    ]},
+    {"oneOf": [
+        absent("transferReversalStatus", "transferReversalReference", "transferReversalFailureCause"),
+        {"properties": {"mode": {"enum": ["ESCROW"]}, "transferReversalStatus": {"enum": ["NOT_REQUIRED", "PENDING"]}},
+         "required": ["transferReversalStatus"], **absent("transferReversalReference", "transferReversalFailureCause")},
+        {"properties": {"mode": {"enum": ["ESCROW"]}, "transferReversalStatus": {"enum": ["SUCCEEDED"]}},
+         "required": ["transferReversalStatus", "transferReversalReference"], **absent("transferReversalFailureCause")},
+        {"properties": {"mode": {"enum": ["ESCROW"]}, "transferReversalStatus": {"enum": ["FAILED"]}},
+         "required": ["transferReversalStatus", "transferReversalFailureCause"]},
+    ]},
+]
 
 S["CancellationInfo"] = obj({
     "cancelledBy": ref("CancelledBy"),
@@ -490,7 +531,8 @@ S["ListRoomsRequest"] = obj({
 S["GetRoomRequest"] = obj({"roomId": uuid(), "checkInDate": date(), "checkOutDate": date(), "membershipTier": ref("MembershipTier")}, ["roomId"])
 S["GetBookingRequest"] = obj({"bookingId": uuid(), "customerId": uuid()}, ["bookingId", "customerId"])
 S["ListBookingsRequest"] = obj({
-    "customerId": uuid(), "status": arr(ref("BookingStatus")), "stayFrom": date(), "stayTo": date(),
+    "customerId": uuid(), "orderId": uuid("Optional exact CP-order lookup for timeout reconciliation"),
+    "status": arr(ref("BookingStatus")), "stayFrom": date(), "stayTo": date(),
     "sort": enum(["CHECK_IN_DESC", "CREATED_DESC"], "Sort order"), "limit": i(minimum=1, maximum=50), "cursor": s(),
 }, ["customerId"])
 S["CancelBookingCommand"] = obj({"bookingId": uuid(), "customerId": uuid(), "reason": s(maxLength=500)}, ["bookingId", "customerId"])
@@ -507,6 +549,14 @@ S["EventFavoriteChanged"] = obj({
     "favoritedAt": dt("Required for FAVORITE_ADDED"),
     "event": ref("EventInfo"),
 }, ["changeType", "event"], "CP-OP-05 payload.")
+S["EventFavoriteChanged"]["oneOf"] = [
+    {"properties": {"changeType": {"enum": ["FAVORITE_ADDED"]}},
+     "required": ["favoriteId", "customerId", "favoritedAt"]},
+    {"properties": {"changeType": {"enum": ["FAVORITE_REMOVED"]}},
+     "required": ["favoriteId", "customerId"]},
+    {"properties": {"changeType": {"enum": ["EVENT_DATES_CHANGED"]}},
+     **absent("favoriteId", "customerId", "favoritedAt")},
+]
 S["RegionalEventNotification"] = obj({
     "notificationId": uuid("CP de-duplicates on this"),
     "favoriteId": uuid(), "customerId": uuid(),
@@ -521,6 +571,8 @@ S["RegionalEventNotification"] = obj({
 S["KafkaEnvelope"] = obj({
     "messageId": uuid("Unique per message; a resend gets a new messageId"),
     "correlationId": uuid("Set by the requester; copied into the response; unchanged on resend"),
+    "traceId": uuid("Business-flow trace shared by related logical requests and events; never a pending-request or deduplication key"),
+    "idempotencyKey": uuid("Required for CREATE_QUOTE, CREATE_BOOKING and CANCEL_BOOKING; unchanged across retries"),
     "causationId": uuid("messageId of the message that caused this one"),
     "type": s("Operation type, e.g. CREATE_BOOKING or CREATE_BOOKING_RESULT"),
     "schemaVersion": enum(["1.0"], "Payload schema version"),
@@ -531,7 +583,7 @@ S["KafkaEnvelope"] = obj({
     "timestamp": dt(),
     "status": enum(["OK", "ERROR"], "Responses only"),
     "payload": obj({}, desc="Request body, response body, or the Error body", additionalProperties=True),
-}, ["messageId", "correlationId", "type", "schemaVersion", "source", "timestamp", "payload"],
+}, ["messageId", "correlationId", "traceId", "type", "schemaVersion", "source", "timestamp", "payload"],
     "Envelope for every Kafka message (04-kafka.md Section 1).")
 
 
@@ -547,6 +599,7 @@ IDS = dict(
     booking="8c9d0e1f-0000-4000-8000-000000000801", discount="d15c0a7e-0000-4000-8000-000000000015",
     review="a1b2c3d4-0000-4000-8000-000000000601", event="e7e70000-0000-4000-8000-000000000c01",
     favorite="fa7e0000-0000-4000-8000-000000000b01", request="2e9b0c11-0000-4000-8000-000000000a01",
+    trace="7ace0000-0000-4000-8000-000000000001",
 )
 LOC = {"addressLine": "21 Nguyen Phuc Chu", "city": "Hoi An", "country": "VN", "timeZone": "Asia/Ho_Chi_Minh"}
 RATING = {"overallAverage": 4.8, "totalReviews": 41, "source": "CP", "asOf": "2026-11-20T10:40:00Z"}
@@ -584,7 +637,7 @@ BOOK_REQ = dict(quoteId=IDS["quote"], customer=CUSTOMER, membership=MEMBERSHIP, 
 SUMMARY = dict(bookingId=IDS["booking"], bookingCode="RS-VN-24F7Q", status="PENDING_APPROVAL", customerId=IDS["customer"],
                providerId=IDS["provider"], branchId=IDS["branch"], roomId=IDS["room"], providerName="Thu Bon Family Stays",
                branchName="Riverside Homestay Hoi An", roomName="Garden Single Room", **STAY, priceBreakdown=PRICE,
-               payment={"mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "HELD", "returnPaymentStatus": "NOT_REQUIRED"},
+               payment={"mode": "ESCROW", "orderId": IDS["order"], "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "HELD", "returnPaymentStatus": "NOT_REQUIRED"},
                createdAt="2026-12-01T03:02:12Z", updatedAt="2026-12-01T03:02:12Z")
 BOOKING = dict(SUMMARY, reviewableFrom="2027-04-10", receptionistContact={"branchName": "Riverside Homestay Hoi An", "branchPhone": "+842353861234"})
 CONFIRMED = dict(SUMMARY, status="CONFIRMED", updatedAt="2026-12-01T09:15:40Z",
@@ -660,9 +713,10 @@ def ex(value, summary=None):
 # ---------------------------------------------------------------- OpenAPI building blocks
 COMMON_PARAMS = {
     "XRequestId": {"name": "X-Request-Id", "in": "header", "required": True, "description": "UUID per HTTP call; echoed by the server.", "schema": uuid()},
-    "XCorrelationId": {"name": "X-Correlation-Id", "in": "header", "required": True, "description": "UUID shared by every call in one business flow.", "schema": uuid()},
+    "XCorrelationId": {"name": "X-Correlation-Id", "in": "header", "required": True, "description": "UUID for one logical operation; reused only for its transport retries and response.", "schema": uuid()},
+    "XTraceId": {"name": "X-Trace-Id", "in": "header", "required": True, "description": "Business-flow UUID shared by related operations; maps to Kafka traceId.", "schema": uuid()},
     "IdempotencyKey": {"name": "Idempotency-Key", "in": "header", "required": True,
-                       "description": "UUID. A retry with the same key returns the original result without a second side effect. Kept for 24 h.", "schema": uuid()},
+                       "description": "UUID scoped to the authenticated partner and operation. Same key/body replays the original outcome; changed body returns 409. Durable booking/payment uniqueness survives Redis cache expiry.", "schema": uuid()},
     "Limit": {"name": "limit", "in": "query", "required": False, "description": "Page size.", "schema": i(minimum=1, maximum=50, default=10)},
     "Cursor": {"name": "cursor", "in": "query", "required": False, "description": "Opaque cursor from pageInfo.nextCursor.", "schema": s()},
     "CheckInDate": {"name": "checkInDate", "in": "query", "required": False, "description": "Must be sent with checkOutDate. Default: tonight (Decision D-05).", "schema": date()},
@@ -671,6 +725,8 @@ COMMON_PARAMS = {
 }
 RL_HEADERS = {
     "X-Request-Id": {"description": "Echo of the request header", "schema": uuid()},
+    "X-Correlation-Id": {"description": "Echo of this logical operation's correlation ID", "schema": uuid()},
+    "X-Trace-Id": {"description": "Echo of the business-flow trace ID", "schema": uuid()},
     "X-RateLimit-Limit": {"description": "Requests allowed in the window", "schema": i()},
     "X-RateLimit-Remaining": {"description": "Requests left in the window", "schema": i()},
     "X-RateLimit-Reset": {"description": "Seconds until the window resets", "schema": i()},
@@ -682,7 +738,7 @@ def path_param(name, desc):
 
 
 def err_resp(desc, examples, retry_after=False):
-    headers = {"X-Request-Id": RL_HEADERS["X-Request-Id"]}
+    headers = {name: RL_HEADERS[name] for name in ["X-Request-Id", "X-Correlation-Id", "X-Trace-Id"]}
     if retry_after:
         headers["Retry-After"] = {"description": "Seconds before retrying", "schema": i()}
     return {"description": desc, "headers": headers,
@@ -728,11 +784,12 @@ def op(op_id, contract_id, summary, desc, tag, scope, params=None, request=None,
     if kafka:
         o["description"] += f"\n\n**Ultimo Kafka binding:** {kafka}"
     o["x-contract-id"] = contract_id
-    o["parameters"] = [P("XRequestId"), P("XCorrelationId")] + (params or [])
+    o["parameters"] = [P("XRequestId"), P("XCorrelationId"), P("XTraceId")] + (params or [])
     if request:
         o["requestBody"] = request
     o["responses"] = responses
-    o["security"] = security if security is not None else [{"partnerOAuth": [scope]}]
+    o["security"] = security if security is not None else [{"partnerBearer": []}]
+    o["x-required-scopes"] = [scope]
     return o
 
 
@@ -765,11 +822,12 @@ def prune_schemas(doc):
 
 def security_schemes(scopes):
     return {
-        "partnerOAuth": {
-            "type": "oauth2",
-            "description": "Partner client-credentials flow (INT-M03). The token identifies a subsystem, not an end user. "
-                           "End-user JWE tokens are never forwarded between subsystems.",
-            "flows": {"clientCredentials": {"tokenUrl": "/api/v1/partner/auth/token", "scopes": scopes}},
+        "partnerBearer": {
+            "type": "http", "scheme": "bearer", "bearerFormat": "JWT",
+            "description": "Custom JSON partner-token issuance at POST /api/v1/partner/auth/token (INT-M03), "
+                           "not an OAuth2 token endpoint. The signed JWS identifies a subsystem. "
+                           "The gateway enforces each operation's x-required-scopes. End-user JWE tokens are never forwarded.",
+            "x-granted-scopes": scopes,
         }
     }
 
@@ -777,10 +835,10 @@ def security_schemes(scopes):
 def token_op(req_ex, resp_ex):
     return {"post": {
         "tags": ["Partner authentication"], "operationId": "issuePartnerToken", "summary": "Issue a partner access token",
-        "description": "Exchanges a partner client ID and secret for a short-lived signed JWT (client-credentials). "
+        "description": "Custom JSON credential exchange for a short-lived signed JWT; this is not an OAuth2 token endpoint. "
                        "Secrets are shared out-of-band and never committed. Rate limit: 10 requests per 60 s.",
         "x-contract-id": "AUTH-01", "security": [],
-        "parameters": [P("XRequestId")],
+        "parameters": [P("XRequestId"), P("XCorrelationId"), P("XTraceId")],
         "requestBody": body(ref("TokenRequest"), {"default": ex(req_ex)}),
         "responses": {**ok("Token issued.", ref("TokenResponse"), {"default": ex(resp_ex)}), **std_errors("400", "401", "429")},
     }}
@@ -878,17 +936,21 @@ pp_paths["/quotes"] = {"post": op(
 pp_paths["/bookings"] = {"post": op(
     "createBooking", "PP-OP-06", "Create booking",
     "Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the "
-    "captured payment directly with the gateway. Errors after a captured payment carry refundRequiredByPayer=true (Decision D-14). "
+    "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; "
+    "quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). "
+    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true (D-14); ambiguous timeouts and already-bound payments do not. "
     "Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.",
     "Bookings", "booking:write", [P("IdempotencyKey")],
     body(ref("CreateBookingRequest"), {"escrow": ex(BOOK_REQ, "Ultimo escrow payment")}),
     {**ok("Booking created.", ref("Booking"), {"escrow": ex(BOOKING)}, code="201"),
      **std_errors("400", "401", "403", "429"),
-     "409": err_resp("Quote expired or mismatched, availability lost, or idempotency conflict.",
+     "409": err_resp("Quote expired/mismatched/consumed, eligibility changed, availability lost, or duplicate business identity.",
                      {"quoteExpired": ex(err("QUOTE_EXPIRED", "The price quote has expired. Request a new quote.", refundRequiredByPayer=True)),
+                      "eligibilityChanged": ex(err("MEMBERSHIP_ELIGIBILITY_CHANGED", "Premium eligibility changed before booking creation. Request a new quote.", refundRequiredByPayer=True)),
+                      "paymentBound": ex(err("PAYMENT_ALREADY_BOUND", "The payment is already bound to a booking. Reconcile the CP order; do not refund it automatically.", refundRequiredByPayer=False)),
                       "idempotency": ex(err("IDEMPOTENCY_CONFLICT", "This Idempotency-Key was used with a different request body.", refundRequiredByPayer=False))}),
      "422": err_resp("Business rule or payment verification failure.",
-                     {"notCaptured": ex(err("PAYMENT_NOT_CAPTURED", "PaymentIntent pi_3QAbCdTEST0001 is not captured.", refundRequiredByPayer=True)),
+                     {"notCaptured": ex(err("PAYMENT_NOT_CAPTURED", "PaymentIntent pi_3QAbCdTEST0001 has no successful capture to return.", refundRequiredByPayer=False)),
                       "amountMismatch": ex(err("PAYMENT_AMOUNT_MISMATCH", "Paid amount 12000 does not equal the quote total 12750.", refundRequiredByPayer=True))}),
      "503": R("ServiceUnavailable")},
     "rs.booking.request.v1 (type=CREATE_BOOKING, key customerId) -> rs.booking.response.v1 (type=CREATE_BOOKING_RESULT)",
@@ -904,8 +966,9 @@ pp_paths["/bookings/{bookingId}"] = {"get": op(
 
 pp_paths["/customers/{customerId}/bookings"] = {"get": op(
     "listCustomerBookings", "PP-OP-08", "List customer bookings", "Data for CP's three booking groups (CP-BOOK-S02, Decision D-09). "
-    "An unknown customer returns 200 with an empty list.", "Bookings", "booking:read",
+    "An unknown customer returns 200 with an empty list. Optional orderId is an exact CP-order lookup for reconciling an ambiguous create timeout.", "Bookings", "booking:read",
     [path_param("customerId", "CP customer ID"),
+     {"name": "orderId", "in": "query", "required": False, "description": "Exact original CP order ID; a committed matching booking is returned even after quote/cache expiry.", "schema": uuid()},
      {"name": "status", "in": "query", "required": False, "style": "form", "explode": True, "schema": arr(ref("BookingStatus"))},
      {"name": "stayFrom", "in": "query", "required": False, "description": "Filter on checkInDate", "schema": date()},
      {"name": "stayTo", "in": "query", "required": False, "description": "Filter on checkInDate", "schema": date()},
@@ -1010,7 +1073,7 @@ cp_paths["/booking-events"] = {"post": op(
     {**ok("Event accepted.", ref("BookingEventAck"), {"default": ex({"eventId": BOOKING_EVENT["eventId"], "accepted": True, "duplicate": False})}),
      **std_errors("400", "401", "429", "503")},
     "replaced by rs.booking.events.v1 (PP -> CP)", "PP-MONEY-S01, M03; CP-MONEY-S01, M02",
-    security=[{"partnerOAuth": ["booking-event:write"], "webhookSignature": []}])}
+    security=[{"partnerBearer": [], "webhookSignature": []}])}
 
 cp_doc = {
     "openapi": "3.0.3",
@@ -1043,21 +1106,110 @@ for d in (pp_doc, cp_doc):
 
 
 # ---------------------------------------------------------------- AsyncAPI 3.0 (Provider Portal view)
-def env_example(type_, source, payload, reply_to=None, correlation="c0ffee00-0000-4000-8000-00000000b001", status=None,
-                ts="2026-12-01T03:00:00Z", mid="e1a2b3c4-0000-4000-8000-00000000a001"):
-    e = {"messageId": mid, "correlationId": correlation, "type": type_, "schemaVersion": "1.0", "source": source}
+REQUEST_PAYLOADS = {
+    "SEARCH_PROVIDERS": "SearchProvidersRequest", "GET_BRANCH": "GetBranchRequest",
+    "LIST_ROOMS": "ListRoomsRequest", "GET_ROOM": "GetRoomRequest",
+    "CREATE_QUOTE": "QuoteRequest", "CREATE_BOOKING": "CreateBookingRequest",
+    "GET_BOOKING": "GetBookingRequest", "LIST_BOOKINGS": "ListBookingsRequest",
+    "CANCEL_BOOKING": "CancelBookingCommand", "GET_ELIGIBILITY": "GetEligibilityRequest",
+    "GET_RATING_STATISTICS": "RatingStatisticsRequest", "GET_MEMBERSHIP": "MembershipRequest",
+}
+RESPONSE_PAYLOADS = {
+    "SEARCH_PROVIDERS_RESULT": "SearchProvidersResponse", "GET_BRANCH_RESULT": "BranchDetails",
+    "LIST_ROOMS_RESULT": "RoomListResponse", "GET_ROOM_RESULT": "RoomDetail",
+    "CREATE_QUOTE_RESULT": "Quote", "CREATE_BOOKING_RESULT": "Booking",
+    "GET_BOOKING_RESULT": "BookingSummary", "LIST_BOOKINGS_RESULT": "BookingListResponse",
+    "CANCEL_BOOKING_RESULT": "BookingSummary", "GET_ELIGIBILITY_RESULT": "ReviewEligibility",
+    "GET_RATING_STATISTICS_RESULT": "RatingStatistics", "GET_MEMBERSHIP_RESULT": "Membership",
+}
+BOOKING_EVENT_TYPES = ["BOOKING_CONFIRMED", "BOOKING_CANCELLED", "BOOKING_COMPLETED",
+                       "RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"]
+FAVORITE_EVENT_TYPES = ["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED"]
+MUTATING_REQUESTS = {"CREATE_QUOTE", "CREATE_BOOKING", "CANCEL_BOOKING"}
+
+
+def request_policy(type_):
+    if type_ in MUTATING_REQUESTS:
+        return "rs.booking.response.v1", "CP", 45
+    if type_ == "GET_RATING_STATISTICS":
+        return "rs.rating-stats.response.v1", "PP", 20
+    if type_ == "GET_MEMBERSHIP":
+        return "rs.membership.response.v1", "PP", 12
+    if type_ in {"SEARCH_PROVIDERS", "GET_BRANCH", "LIST_ROOMS", "GET_ROOM"}:
+        return "rs.search.response.v1", "CP", 12
+    return "rs.booking.response.v1", "CP", 12
+
+
+_example_counter = iter(range(1, 1000))
+_request_examples = {}
+
+
+def env_example(type_, source, payload, reply_to=None, correlation=None, status=None,
+                ts="2026-12-01T03:00:00Z", mid=None):
+    k = next(_example_counter)
+    request = _request_examples.get(type_.removesuffix("_RESULT")) if status else None
+    correlation = correlation or (request["correlationId"] if request else f"c0ffee00-0000-4000-8000-{k:012x}")
+    mid = mid or f"e1a2b3c4-0000-4000-8000-{k:012x}"
+    e = {"messageId": mid, "correlationId": correlation, "traceId": IDS["trace"],
+         "type": type_, "schemaVersion": "1.0", "source": source}
     if reply_to:
-        e.update({"replyTo": reply_to, "attempt": 1, "deadline": "2026-12-01T03:00:10Z"})
+        deadline = datetime.fromisoformat(ts.replace("Z", "+00:00")) + timedelta(seconds=request_policy(type_)[2])
+        e.update({"replyTo": reply_to, "attempt": 1, "deadline": deadline.isoformat().replace("+00:00", "Z")})
+        if type_ in MUTATING_REQUESTS:
+            e["idempotencyKey"] = correlation
+        _request_examples[type_] = e
     e["timestamp"] = ts
     if status:
         e["status"] = status
+        if not request:
+            raise ValueError(f"Response example has no request example: {type_}")
+        e["causationId"] = request["messageId"]
+        if e["correlationId"] != request["correlationId"]:
+            raise ValueError(f"Response example correlation mismatch: {type_}")
     e["payload"] = payload
     return e
 
 
 def envelope_schema(types, payload_refs, desc):
-    payload = {"anyOf": [ref(r) for r in payload_refs], "description": "Payload schema selected by the envelope type"} if len(payload_refs) > 1 else ref(payload_refs[0])
-    return {"allOf": [ref("KafkaEnvelope"), obj({"type": enum(types, "Message type"), "payload": payload})], "description": desc}
+    branches = []
+    for type_ in types:
+        properties = {"type": {"enum": [type_]}}
+        required = []
+        if type_ in REQUEST_PAYLOADS:
+            reply, source, _ = request_policy(type_)
+            assert REQUEST_PAYLOADS[type_] in payload_refs
+            properties.update({"source": {"enum": [source]}, "replyTo": {"enum": [reply]},
+                               "payload": ref(REQUEST_PAYLOADS[type_])})
+            required = ["replyTo", "attempt", "deadline"]
+            forbidden = ["status"]
+            if type_ in MUTATING_REQUESTS:
+                required.append("idempotencyKey")
+            else:
+                forbidden.append("idempotencyKey")
+            branches.append(obj(properties, required, **absent(*forbidden)))
+        elif type_ in RESPONSE_PAYLOADS:
+            assert RESPONSE_PAYLOADS[type_] in payload_refs
+            source = "CP" if request_policy(type_.removesuffix("_RESULT"))[1] == "PP" else "PP"
+            for status in ["OK", "ERROR"]:
+                payload = ({"allOf": [ref(RESPONSE_PAYLOADS[type_]), absent("error")]} if status == "OK" else
+                           {"allOf": [ref("Error"), obj({"error": obj({"httpStatus": i(minimum=400, maximum=599)}, ["httpStatus"])})]})
+                branches.append(obj({**properties, "source": {"enum": [source]},
+                                     "status": {"enum": [status]}, "payload": payload},
+                                    ["status", "causationId"], **absent("replyTo", "attempt", "deadline", "idempotencyKey")))
+        else:
+            if type_ in BOOKING_EVENT_TYPES:
+                payload = {"allOf": [ref("BookingStatusEvent"), obj({"eventType": {"enum": [type_]}})]}
+                source = "PP"
+            elif type_ in FAVORITE_EVENT_TYPES:
+                payload = {"allOf": [ref("EventFavoriteChanged"), obj({"changeType": {"enum": [type_]}})]}
+                source = "CP"
+            elif type_ == "REGIONAL_EVENT_NOTIFICATION":
+                payload, source = ref("RegionalEventNotification"), "PP"
+            else:
+                raise ValueError(f"Unknown Kafka message type: {type_}")
+            branches.append(obj({**properties, "source": {"enum": [source]}, "payload": payload},
+                                **absent("replyTo", "attempt", "deadline", "status", "idempotencyKey")))
+    return {"allOf": [ref("KafkaEnvelope"), {"oneOf": branches}], "description": desc}
 
 
 def message(name, title, summary, types, payload_refs, key_desc, examples):
@@ -1130,7 +1282,7 @@ def _req(type_, payload, reply):
 
 def _res(type_, payload, status="OK"):
     k = next(_n)
-    return env_example(type_, "PP", payload, status=status, correlation=f"c0ffee00-0000-4000-8000-00000000{k:04x}",
+    return env_example(type_, "PP", payload, status=status,
                        mid=f"6b0e2a71-0000-4000-8000-00000000{k:04x}", ts="2026-12-01T03:00:01Z")
 
 
@@ -1186,6 +1338,19 @@ _more("EventFavoriteChanged", [
                             correlation="fa7e0000-0000-4000-8000-000000000b02", mid="3e550000-0000-4000-8000-000000000d02", ts="2027-01-05T03:00:00Z")),
     ("datesChanged", env_example("EVENT_DATES_CHANGED", "CP", {"changeType": "EVENT_DATES_CHANGED", "event": dict(EVENT, startDate="2027-04-14", endDate="2027-04-20")},
                                  correlation=IDS["event"], mid="3e550000-0000-4000-8000-000000000d03", ts="2027-01-06T03:00:00Z")),
+])
+
+_more("BookingStatusEvent", [
+    ("refundAfterTransferReversal", env_example("RETURN_PAYMENT_UPDATED", "PP", {
+        "eventId": "11112222-0000-4000-8000-000000000008", "eventType": "RETURN_PAYMENT_UPDATED",
+        "occurredAt": "2026-12-03T05:01:00Z", "sequence": 5,
+        "booking": dict(CANCELLED, payment={
+            "mode": "ESCROW", "orderId": IDS["order"], "originalPaymentReference": "pi_3QAbCdTEST0001",
+            "escrowStatus": "REFUNDED", "releaseReference": "tr_1QXyzTEST0001",
+            "transferReversalStatus": "SUCCEEDED", "transferReversalReference": "trr_1QXyzTEST0001",
+            "returnPaymentStatus": "SUCCEEDED", "returnPaymentReference": "re_3QAbCdTEST0001",
+        }, updatedAt="2026-12-03T05:01:00Z"),
+    }, correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e8", ts="2026-12-03T05:01:00Z")),
 ])
 
 TOPICS = [  # key, address, created by, producer->consumer, messages
@@ -1291,5 +1456,5 @@ out = {
 }
 for path, doc in out.items():
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(HEADER + yaml.dump(doc, Dumper=Dumper, sort_keys=False, allow_unicode=True, width=120))
+    path.write_text(HEADER + yaml.dump(doc, Dumper=Dumper, sort_keys=False, allow_unicode=True, width=120), encoding="utf-8")
     print("wrote", path.relative_to(ROOT), len(doc["components"]["schemas"]), "schemas")

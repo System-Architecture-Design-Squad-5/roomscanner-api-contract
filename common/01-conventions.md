@@ -48,9 +48,11 @@ Partner-facing APIs are kept separate from frontend-facing APIs (such as CP's `/
 
 ## 4. Partner authentication and authorization (INT-M03)
 
-### 4.1 Partner access token (client-credentials)
+### 4.1 Partner access token (custom JSON credential exchange)
 
 Each subsystem issues tokens for its own partner API. The calling subsystem exchanges a **client ID and secret** (shared out-of-band, held in environment variables and never committed) for a short-lived token.
+
+This is a **custom JSON token endpoint**, using the camelCase fields below. It is not an OAuth2 token endpoint: no OAuth2 `grant_type`, form encoding, or automatic OAuth2 authorization flow is advertised. OpenAPI declares `partnerBearer` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). Each operation's `x-required-scopes` extension records the scopes enforced by the gateway. Bearer security requirements use an empty scope array in OpenAPI; the custom extension and the scope table below define authorization.
 
 **`POST /api/v1/partner/auth/token`**
 
@@ -212,6 +214,8 @@ These are applied per partner `clientId` at the subsystem edge/gateway with a Re
 | GET (safe) | 3 s | Up to 2, exponential backoff (200 ms, 800 ms) on 503/504/network errors |
 | POST with `Idempotency-Key` | 10 s | Up to 2, **same key**, on 503/504/network errors |
 | Never retried | N/A | 4xx responses other than 429 |
+
+For an Ultimo HTTP-to-Kafka bridge, the caller/waiter timeout is the Kafka operation's overall budget plus 5 s (50 s for booking writes; see `04-kafka.md` Section 4). This overrides the direct-REST defaults above. Do not start a second logical write because its HTTP waiter timed out: preserve its idempotency key and reconcile its CP order before any compensation. Responses echo `X-Correlation-Id` and `X-Trace-Id` when supplied.
 
 ## 9. Versioning
 

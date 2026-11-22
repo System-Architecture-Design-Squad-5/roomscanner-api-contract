@@ -68,6 +68,7 @@ The SRS documents leave several details to the teams ("teams document fields, ac
   - `PERCENTAGE`: discount = round_half_up(subtotal × value / 100).
   - `FIXED_PER_NIGHT`: discount = value × nights × quantity, capped at the subtotal.
 - **Eligibility timing:** The customer must be `PREMIUM` with status `ACTIVE` **at quote time and at booking creation time**. PP verifies this with CP-OP-02 and does not rely only on the snapshot CP sends. The membership expiring **after** booking creation does not change the booking.
+- If Premium eligibility ends between quote and creation, PP returns `MEMBERSHIP_ELIGIBILITY_CHANGED`; it must not increase an already-captured price. The unbound request is durably rejected before CP returns the captured payment and asks for a new quote. Dependency unavailability remains retryable and does not authorize compensation (PP-03).
 - **Policy change or cancellation:** This affects **new quotes only**. Existing bookings keep their `AppliedDiscount` snapshot, and open quotes keep their price until they expire. No per-booking discount program is created.
 
 ### D-07 Payment gateways per level
@@ -76,6 +77,7 @@ The SRS documents leave several details to the teams ("teams document fields, ac
 | Simplex | none (`SIMULATED`) | Issues a simulated order | Completes/cancels it via CP-OP-03 |
 | Medium | **PayPal Sandbox** | Orders API: capture to the **provider's PayPal sandbox merchant account** (direct customer-to-provider payment) | On cancellation, a **Payouts API** transfer from the provider account to the customer's PayPal email. This is a separate payment with its own reference (PP-MONEY-M02). |
 | Ultimo | **Stripe Sandbox with Connect** (separate charges and transfers) | PaymentIntent with `capture_method=manual` → **authorize**, then **capture** into the platform balance (held) | On approval: **release** via a Transfer to the provider's connected account (`source_transaction` = charge). The provider's connected account then makes a **Payout** to bank. On cancellation: **refund** the charge. |
+- **Shared-platform ownership:** The squad configures one Stripe Connect sandbox platform, with its platform account ID recorded as `STRIPE_PLATFORM_ACCOUNT_ID` in each subsystem's environment. CP creates/captures the platform charge; PP releases, reverses and refunds that same platform's objects. Use separate least-privilege service credentials for this platform, not unrelated CP/PP Stripe accounts. Provider connected-account IDs are destinations belonging to this platform. PP-05 defines reversal outcomes and webhook ownership.
 - **Rationale:** PayPal Payouts supports a true provider-to-customer payment that is separate from the original (needed for Medium). Stripe Connect natively supports all five escrow operations (authorize, capture, release/transfer, payout, refund) required by PP-MONEY-U01 and CP-MONEY-U04.
 - Each provider stores its `paymentAccountId` (PayPal merchant ID / Stripe `acct_…`). PP returns it in the quote, so CP never needs provider account data.
 
@@ -128,8 +130,9 @@ A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides h
 
 ### D-14 Booking rejected after payment was captured
 - **Problem:** At Medium/Ultimo, CP captures the payment **before** sending the booking. The booking can then be rejected (rooms sold out, quote expired, validation error).
-- **Mitigation:** PP-OP-05 places a **15-minute quote hold** on the inventory, so a booking with a valid `quoteId` cannot fail for availability.
-- **If it still fails:** No booking exists, so this is **not** a cancellation. **CP refunds its own original payment** (PayPal capture refund / Stripe refund or authorization void) and shows the exact error to the customer (CP-MONEY-M01). PP returns a specific error code so CP knows to refund.
+- **Mitigation:** PP-OP-05 places a **15-minute quote hold** on the inventory. PP atomically consumes it and enforces unique quote, CP order and gateway-payment bindings when creating the booking; a hold reduces risk but does not replace rejection/reconciliation rules.
+- **Terminal rejection:** PP must durably close the create request and verify no booking/payment binding exists before returning `refundRequiredByPayer=true`. Atomically mark the quote, CP order and payment identities `REJECTED_COMPENSATION_AUTHORIZED` so no request under another key can later create a booking with them. CP then compensates its own verified, unbound original capture and displays the exact cause. Replays return the recorded rejection; a new purchase needs new quote/order/payment identities.
+- **Ambiguous failure:** Timeout/503, lost acknowledgement or a duplicate binding is not proof of rejection. Preserve the write key and reconcile through the durable replay result and PP-OP-08's customer/order lookup. Never refund solely because a response was lost or an in-flight lookup was empty. Unique bindings remain after Redis expiry and workflow archiving.
 
 ### D-15 Time zones
 - Stay dates and "today" checks use the **branch's** IANA time zone (e.g. `Asia/Ho_Chi_Minh`, `Asia/Bangkok`).

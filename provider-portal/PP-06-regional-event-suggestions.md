@@ -212,6 +212,7 @@ CP dedicated consumer ◄─ filters: still favorited AND customer is active Pre
 {
   "messageId": "3e550000-0000-4000-8000-000000000e01",
   "correlationId": "fa7e0000-0000-4000-8000-000000000b02",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "REGIONAL_EVENT_NOTIFICATION",
   "schemaVersion": "1.0",
   "source": "PP",
@@ -222,10 +223,49 @@ CP dedicated consumer ◄─ filters: still favorited AND customer is active Pre
     "customerId": "7d1e2f30-0000-4000-8000-000000000902",
     "trigger": "SCHEDULED_TWO_MONTH",
     "notificationWindowStart": "2027-02-11",
-    "event": { "eventId": "e7e70000-0000-4000-8000-000000000c01", "name": "Hùng Kings' Temple Festival", "summary": "National festival honouring the Hùng Kings with processions, folk games and xoan singing.", "locationName": "Hùng Kings' Temple, Viet Tri City, Phu Tho", "city": "Viet Tri", "country": "VN", "timeZone": "Asia/Ho_Chi_Minh", "startDate": "2027-04-12", "endDate": "2027-04-18", "searchRoute": "/search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13" },
+    "event": {
+      "eventId": "e7e70000-0000-4000-8000-000000000c01",
+      "name": "Hùng Kings' Temple Festival",
+      "summary": "National festival honouring the Hùng Kings with processions, folk games and xoan singing.",
+      "locationName": "Hùng Kings' Temple, Viet Tri City, Phu Tho",
+      "city": "Viet Tri",
+      "country": "VN",
+      "timeZone": "Asia/Ho_Chi_Minh",
+      "startDate": "2027-04-12",
+      "endDate": "2027-04-18",
+      "searchRoute": "/search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13"
+    },
     "suggestions": [
-      { "rank": 1, "providerId": "5b1c2d3e-0000-4000-8000-000000000170", "providerName": "Phu Tho Tourism JSC", "branchId": "9a8b7c6d-0000-4000-8000-000000000270", "name": "Saigon Phu Tho Hotel", "type": "HOTEL", "logoUrl": "https://cdn.roomscanner.local/logos/sgpt_256.webp", "pricePerNight": { "amountMinor": 4200, "currency": "USD" }, "overallRating": 4.7, "totalReviews": 63 },
-      { "rank": 2, "providerId": "5b1c2d3e-0000-4000-8000-000000000171", "providerName": "Song Lo Homes", "branchId": "9a8b7c6d-0000-4000-8000-000000000271", "name": "Song Lo Riverside Homestay", "type": "HOMESTAY", "logoUrl": "https://cdn.roomscanner.local/logos/songlo_256.webp", "pricePerNight": { "amountMinor": 1800, "currency": "USD" }, "overallRating": 4.5, "totalReviews": 22 }
+      {
+        "rank": 1,
+        "providerId": "5b1c2d3e-0000-4000-8000-000000000170",
+        "providerName": "Phu Tho Tourism JSC",
+        "branchId": "9a8b7c6d-0000-4000-8000-000000000270",
+        "name": "Saigon Phu Tho Hotel",
+        "type": "HOTEL",
+        "logoUrl": "https://cdn.roomscanner.local/logos/sgpt_256.webp",
+        "pricePerNight": {
+          "amountMinor": 4200,
+          "currency": "USD"
+        },
+        "overallRating": 4.7,
+        "totalReviews": 63
+      },
+      {
+        "rank": 2,
+        "providerId": "5b1c2d3e-0000-4000-8000-000000000171",
+        "providerName": "Song Lo Homes",
+        "branchId": "9a8b7c6d-0000-4000-8000-000000000271",
+        "name": "Song Lo Riverside Homestay",
+        "type": "HOMESTAY",
+        "logoUrl": "https://cdn.roomscanner.local/logos/songlo_256.webp",
+        "pricePerNight": {
+          "amountMinor": 1800,
+          "currency": "USD"
+        },
+        "overallRating": 4.5,
+        "totalReviews": 22
+      }
     ],
     "searchLink": "/search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13",
     "publishedAt": "2027-02-10T17:00:00Z"
