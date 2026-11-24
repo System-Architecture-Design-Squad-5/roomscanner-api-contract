@@ -1,6 +1,6 @@
 # 04: Kafka Integration (Ultimo)
 
-This file implements **inter-subsystem** Kafka communication: `INT-U01` (services exchanged through Kafka between CP and PP), `INT-U02` (a send channel and a receive channel per request, with correlation), `INT-U03` (resend on failure), and Cross-Ecosystem PMS over Kafka. *(Note: `BE-U02` inter-microservice Kafka applies inside **Provider Portal's Microservices** architecture; inside **Customer Portal's Modular Monolith**, modules communicate in-process via External Interfaces and External DTOs per `BE-M03`–`BE-M06`.)*
+These are the Kafka rules for CP↔PP: paired topics, correlation and retries (`INT-U01`–`INT-U03`). The [PMS outline](../pms/PMS-cross-ecosystem-draft.md) covers the separate cross-squad exchange. Inside PP, `BE-U02` applies to microservice messaging. CP modules call each other in-process through external interfaces and DTOs (`BE-M03`–`BE-M06`).
 
 ## 1. Message envelope
 
@@ -23,7 +23,9 @@ Every Kafka message value is a JSON envelope. The `payload` uses the REST operat
 | status | string | required on responses | `OK` or `ERROR`; forbidden on requests/events |
 | payload | object | yes | Request body, response body, or the error body (`01-conventions.md` §5) |
 
-`correlationId` identifies **one logical service request**, not the whole business flow. A new operation gets a new correlation ID even when it shares a trace ID with earlier calls. One-way events use the documented aggregate/favorite correlation and do not create pending requests. The generated schemas bind each `type` to its exact payload, producer and response channel. Responses require `causationId` and `status`; `OK` carries that operation's success payload and `ERROR` carries the standard error including `httpStatus`. Event envelopes have neither response status nor request-only fields.
+- Use a fresh `correlationId` for each logical request. Related requests can share a `traceId`.
+- The generated schemas tie each `type` to its payload, producer and, for requests, reply topic. A reply includes `causationId` and `status`: `OK` carries the result; `ERROR` carries the standard error with `httpStatus`.
+- One-way events use the operation's documented aggregate or favorite ID for correlation. They have no pending request, request-only fields or response status.
 
 ```json
 {
@@ -119,7 +121,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 
 ## 3. Request/response correlation (INT-U02)
 
-1. The requester generates a fresh `correlationId` for this logical operation and retains the business `traceId`. It stores `pending:{source}:{type}:{correlationId}` in Redis with `{expectedResponseType, traceId, idempotencyKey?, attempt, deadline, originalPayload, waiterInstanceId}`. Expire the entry at the absolute deadline + 60 s (`EXPIREAT`, or an equivalent relative duration).
+1. Before sending, the requester stores `pending:{source}:{type}:{correlationId}` in Redis. Keep `expectedResponseType`, `traceId`, optional `idempotencyKey`, `attempt`, `deadline`, `originalPayload` and `waiterInstanceId`. Expire the entry 60 s after the absolute deadline.
 2. It produces to the request topic, with `replyTo` set to the paired response topic.
 3. The responder validates the authenticated producer, message type and paired `replyTo`, then returns the **same** `correlationId` and `traceId`. `causationId` identifies the transport attempt that caused this response.
 4. The requester's **dedicated response consumer** resolves the expected request type and looks up `pending:{source}:{type}:{correlationId}`. It verifies response type, producer and trace before applying it:
@@ -138,17 +140,18 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 | `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s | 12 s |
 
 - A resend keeps the **same `correlationId`**, gets a **new `messageId`**, and increments `attempt`.
-- **Idempotent responders:** The responder caches the business outcome under `processed:{source}:{type}:{correlationId}` for 24 h. A duplicate gets that outcome in a fresh response envelope: new `messageId` and `timestamp`, `causationId` set to the current attempt's `messageId`, and the request's `correlationId` and `traceId`. For errors, `error.requestId` also identifies the current attempt. Do not replay an old transport envelope. Write outcomes are additionally replayed by authenticated partner + operation + `idempotencyKey`; changed input returns `IDEMPOTENCY_CONFLICT`. Durable quote/order/payment uniqueness and terminal rejections survive Redis expiry (PP-03).
-- After the last attempt fails, the requester returns `503 SERVICE_UNAVAILABLE` to its own frontend (a controlled failure; on CP's `/api/v1/customer/*` endpoints this is translated into CP's 4-field `"error"` payload with `errorCode: "SERVICE_UNAVAILABLE"` and `validInputExample: null`, see `01-conventions.md` §5.2). For rating statistics, PP shows the last cached statistics marked "stale" if it still holds them, otherwise "Rating temporarily unavailable" (D-11).
+- **Replay the outcome, not the message.** Cache the business outcome in Redis for 24 h under `processed:{source}:{type}:{correlationId}`. On a duplicate, use a new response `messageId` and `timestamp`. Copy `correlationId` and `traceId` from the request. Set `causationId` and, for errors, `error.requestId` to the current attempt's `messageId`.
+- **Replay writes by their durable key:** authenticated partner + operation + `idempotencyKey`. Changed input returns `IDEMPOTENCY_CONFLICT`. [Quote, order and payment uniqueness and terminal rejections](../provider-portal/PP-03-bookings.md#pp-op-06-createbooking) survive Redis expiry.
+- When retries run out, return `503 SERVICE_UNAVAILABLE` to the calling portal's frontend. CP maps it to `errorCode: "SERVICE_UNAVAILABLE"` and `validInputExample: null` (see [conventions §5.2](01-conventions.md#5-error-format)). For rating statistics, PP shows cached data marked stale, or “Rating temporarily unavailable” if none is cached (D-11).
 - A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
 
 ## 5. Redundancy and delivery guarantees
 
 - **Delivery:** at-least-once. Producers use `acks=all` and `enable.idempotence=true`. Consumers commit offsets **after** processing. Responders are idempotent (§4).
-- **PP booking redundancy (PP-BOOK-U01):** Both PP booking-service instances (Machine 1 and Machine 2) join the consumer group `pp-booking-service`. If the primary fails, Kafka rebalances its partitions to the redundant instance, which continues from the last committed offset. CP needs no change. REST traffic from the PP frontend fails over through the API Gateway + service discovery (+ circuit breaker) in the same way.
-- **CP rating redundancy (CustomerPortalSRS §3):** CP runs a second instance of the CP modular monolith (same single deployable, all modules). In both instances `PartnerIntegrationModule`'s consumer joins group `cp-rating-service` on `rs.rating-stats.request.v1`. If one instance fails, Kafka rebalances its partitions to the other, so on-demand rating statistics continue to be served. CP stays a modular monolith; this is horizontal scaling of the one deployable, not a separate rating microservice.
+- **PP booking failover (`PP-BOOK-U01`):** The instances on Machines 1 and 2 share the booking store and join `pp-booking-service`. If one fails, Kafka moves its partitions to the other, which resumes from the last committed offset. CP keeps the same Kafka entry point. For PP's own frontend, the gateway routes through service discovery and the circuit breaker.
+- **CP rating failover (CP SRS §3):** `PartnerIntegrationModule` joins `cp-rating-service` on `rs.rating-stats.request.v1` in both instances of the monolith. If one fails, Kafka moves its partitions to the other. CP does not deploy a separate rating service.
 - **Ordering:** guaranteed per key. All events for one `bookingId` arrive in order.
-- **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP is a **modular monolith** (Medium backend): every CP producer and consumer group (for example `cp-search-reply`) runs inside the monolith process, in `PartnerIntegrationModule`. The contract would not change if a partner were deployed as microservices instead, as the SRS requires. A partition is assigned to one member of a group at a time; at-least-once redelivery remains possible and requires deduplication. Neither side needs to know how the other is deployed.
+- **Backend independence (`PP-SEARCH-U02`, `PP-ROOM-U02`, `PP-RATING-U01`, `CP-RATING-U01`):** CP runs its Kafka producers and consumers in `PartnerIntegrationModule`. A microservice deployment could use the same topics, envelopes and groups in §6 without a contract change.
 
 ## 6. Security and ACLs
 

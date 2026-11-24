@@ -2,6 +2,10 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
+## [Unreleased] - Documentation review
+
+- Added direct links to the shared conventions (T26) and shortened the README, Kafka and booking notes. The wire schemas and examples have not changed. The PMS outline remains an open cross-squad agreement.
+
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 
 ### Fixed

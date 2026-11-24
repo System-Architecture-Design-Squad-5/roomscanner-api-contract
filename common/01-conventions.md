@@ -23,8 +23,8 @@ Partner-facing APIs are kept separate from frontend-facing APIs (such as CP's `/
 
 Frontends never call the partner subsystem directly; each frontend talks only to its own backend, and backends talk to each other through this contract.
 
-- **Provider Portal (PP)** uses a **Microservices** architecture (`BE-U01`–`BE-U09`). Its API Gateway resolves partner routes through **service discovery** (`BE-U05`, `BE-U06`), keeping the redundant booking service (`PP-BOOK-U01`) transparent to CP.
-- **Customer Portal (CP)** uses a **Modular Monolith** architecture (`BE-M01`–`BE-M08`). Partner authentication, rate limiting, and webhook verification are enforced in CP's shared cross-cutting security/filter layer, outside the business modules, and requests are handled by `PartnerIntegrationModule` and dispatched in-process via external service interfaces (`IRatingExternalService`, `IMembershipExternalService`, `IEventExternalService`, `IBookingExternalService`).
+- PP's gateway uses service discovery to route requests, including to a redundant booking instance (`BE-U05`, `BE-U06`, `PP-BOOK-U01`). The route stays the same for CP.
+- CP checks partner credentials, rate limits and webhook signatures before requests reach its business modules. `PartnerIntegrationModule` calls those modules in-process through `IRatingExternalService`, `IMembershipExternalService`, `IEventExternalService` and `IBookingExternalService`.
 
 ## 2. Data formats
 
@@ -50,18 +50,20 @@ Frontends never call the partner subsystem directly; each frontend talks only to
 | `X-Request-Id` | request/response | yes | UUID per HTTP call. The server echoes it. |
 | `X-Correlation-Id` (or `X-Correlation-ID`) | request/response | yes | UUID for **one logical operation**; reused only for that operation's transport retries and its response. Maps to Kafka `correlationId` (`04-kafka.md` §1). HTTP header matching is case-insensitive. |
 | `X-Trace-Id` | request/response | yes | UUID shared by every call in one **business flow** (e.g. quote → booking → events). Maps to Kafka `traceId`. Never used for correlation or de-duplication. |
-| `Idempotency-Key` | request | PP-OP-05/06/09 and CP-OP-03 | UUID scoped to the authenticated partner and operation. A retry with the same key returns the **original** business result without a second side effect; response headers echo the current call's IDs. Replay responses are cached for 24 h in Redis; booking/order/payment uniqueness is durable and outlives the cache (PP-03). Maps to Kafka `idempotencyKey` for Kafka writes. Webhooks deduplicate on `eventId`; Simplex suggestions use `requestId`. |
+| `Idempotency-Key` | request | PP-OP-05/06/09 and CP-OP-03 | UUID scoped to the authenticated partner and operation. Maps to Kafka `idempotencyKey`. |
 | `X-RS-Signature` | webhook request | Medium+ | HMAC signature for PP → CP webhooks (§4.3) |
 | `X-RateLimit-Limit` / `-Remaining` / `-Reset` | response | yes | Rate-limit status (§7) |
 | `Retry-After` | response | on 429/503 | Seconds before the client should retry |
+
+Reusing the same idempotency key and input returns the original business result without repeating the write. Response headers echo the current call's IDs. Redis caches replay responses for 24 h; [booking, order and payment uniqueness](../provider-portal/PP-03-bookings.md#pp-op-06-createbooking) outlasts that cache. Webhooks deduplicate on `eventId`; Simplex event suggestions use `requestId`.
 
 ## 4. Partner authentication and authorization (INT-M03)
 
 ### 4.1 Partner access token (custom JSON credential exchange)
 
-Each subsystem issues tokens for its own partner API. The calling subsystem exchanges a **client ID and secret** (shared out-of-band, held in environment variables and never committed) for a short-lived token.
+Each subsystem issues short-lived tokens for its own API. Callers exchange a client ID and secret using the JSON body below, not an OAuth2 form or `grant_type`. Share the secret out of band, store it in an environment variable and never commit it.
 
-This is a **custom JSON token endpoint**, using the camelCase fields below. It is not an OAuth2 token endpoint: no OAuth2 `grant_type`, form encoding, or automatic OAuth2 authorization flow is advertised. OpenAPI declares `partnerBearer` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). Each operation's `x-required-scopes` extension records the scopes enforced by PP's gateway or CP's cross-cutting security filter. Bearer security requirements use an empty scope array in OpenAPI; the custom extension and the scope table below define authorization.
+OpenAPI declares `partnerBearer` as HTTP bearer authentication with JWTs. Its bearer scope array is empty, and `x-required-scopes` lists the scopes that PP's gateway or CP's security filter actually checks.
 
 **`POST /api/v1/partner/auth/token`**
 
@@ -181,7 +183,7 @@ Every non-2xx response, and every Kafka response whose `status` is `ERROR`, uses
 
 ### 5.2 Customer Portal Frontend Error Translation (`/api/v1/partner/*` → `/api/v1/customer/*`)
 
-On **partner-to-partner** calls (`/api/v1/partner/*` and Kafka topics), both subsystems use the partner error schema in Section 5 above. When Customer Portal proxies a partner operation to its own web frontend (`/api/v1/customer/*`), CP's `PartnerIntegrationModule` and Global Exception Handler translate the partner error into CP's 4-field customer-facing error convention (`roomscanner-customer-portal/docs/server/api_conventions_standards.md` §5):
+Both subsystems use the error body above on partner REST and Kafka. For `/api/v1/customer/*`, CP's `PartnerIntegrationModule` and global exception handler map it to the customer-facing format (`roomscanner-customer-portal/docs/server/api_conventions_standards.md` §5):
 
 | Partner Error Field (`/api/v1/partner/*` / Kafka) | CP Customer-Facing Field (`/api/v1/customer/*`) | Mapping Rule |
 |---|---|---|
@@ -227,7 +229,7 @@ These are applied per partner `clientId` with a Redis-backed sliding window: by 
 | POST with `Idempotency-Key` | 10 s | Up to 2, **same key**, on 503/504/network errors |
 | Never retried | N/A | 4xx responses other than 429 |
 
-For an Ultimo HTTP-to-Kafka bridge, the caller/waiter timeout is the Kafka operation's overall budget plus 5 s (50 s for booking writes; see `04-kafka.md` Section 4). This overrides the direct-REST defaults above. Do not start a second logical write because its HTTP waiter timed out: preserve its idempotency key and reconcile its CP order before any compensation. Responses echo `X-Correlation-Id` and `X-Trace-Id` when supplied.
+If HTTP is waiting for a Kafka reply, use the [Kafka retry budget](04-kafka.md#4-resend-policy-int-u03) plus 5 s instead of the REST timeout (50 s for booking writes). A timeout is not a new write: keep the same idempotency key and reconcile the CP order before any compensation. Responses echo `X-Correlation-Id` and `X-Trace-Id` when supplied.
 
 ## 9. Versioning
 
