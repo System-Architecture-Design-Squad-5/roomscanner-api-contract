@@ -178,6 +178,15 @@ class ContractValidation(unittest.TestCase):
         data = example("EventFavoriteChanged")
         data["status"] = "OK"
         self.assert_invalid("EventFavoriteChanged", data)
+        deleted = next(ex["payload"] for ex in MESSAGES["EventFavoriteChanged"]["examples"]
+                       if ex["payload"]["type"] == "EVENT_DELETED")
+        self.assert_valid("EventFavoriteChanged", copy.deepcopy(deleted))
+        data = copy.deepcopy(deleted)
+        data["payload"]["customerId"] = "7d1e2f30-0000-4000-8000-000000000902"
+        self.assert_invalid("EventFavoriteChanged", data)
+        data = copy.deepcopy(deleted)
+        data["payload"]["changeType"] = "EVENT_DATES_CHANGED"
+        self.assert_invalid("EventFavoriteChanged", data)
 
     def test_reversal_outcome_requires_reference_or_failure_cause(self):
         schema = ASYNC["components"]["schemas"]["BookingPaymentStatus"]

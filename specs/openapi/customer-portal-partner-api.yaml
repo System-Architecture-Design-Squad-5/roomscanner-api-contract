@@ -8,15 +8,15 @@ info:
     REST API that the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`) provides to the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`).
     This file is the machine-readable form of `customer-portal/CP-01` to `CP-04` (indexed in `customer-portal/CP-services-required-by-PP.md`). CP owns these operations and has reviewed and confirmed this specification.
     Within CP's Modular Monolith, `PartnerIntegrationModule` dispatches requests in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
-    At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a standby redundant rating instance in consumer group `cp-rating-service`.
+    At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a second instance of the CP modular monolith whose rating consumer also joins group `cp-rating-service`.
   contact:
     name: RoomScanner squad API contract
     url: https://github.com/SQUAD-ORGANIZATION/roomscanner-api-contract
 servers:
 - url: http://localhost:9080/api/v1/partner
   description: Local / Simplex
-- url: https://cp-gateway.{squad}.roomscanner.local/api/v1/partner
-  description: Deployed (CP Modular Monolith PartnerIntegrationModule)
+- url: https://cp-api.{squad}.roomscanner.local/api/v1/partner
+  description: Deployed (CP Modular Monolith, single deployable; no API Gateway; served by PartnerIntegrationModule)
   variables:
     squad:
       default: squad
@@ -815,7 +815,8 @@ components:
               value:
                 error:
                   code: RATE_LIMITED
-                  message: Rate limit of 120 requests per 60 s exceeded.
+                  message: Rate limit exceeded for this scope (see common/01-conventions.md Section 7). Retry after the Retry-After
+                    interval.
                   requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                   timestamp: '2026-11-20T11:00:00Z'
     ServiceUnavailable:
@@ -886,7 +887,8 @@ components:
       - SIMULATED
       - DIRECT
       - ESCROW
-      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = Ultimo (Decision D-07).
+      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = optional Ultimo flow that replaces DIRECT for the bookings
+        that use it (Decision D-07).
     ReturnPaymentStatus:
       type: string
       enum:

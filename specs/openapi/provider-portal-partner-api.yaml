@@ -859,7 +859,7 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '409':
-          description: Not enough rooms available.
+          description: Not enough rooms available, or the Idempotency-Key was reused with a different body.
           headers:
             X-Request-Id:
               description: Echo of the request header
@@ -887,6 +887,13 @@ paths:
                       code: INSUFFICIENT_AVAILABILITY
                       message: Only 1 room is available for these dates.
                       availableQuantity: 1
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                idempotency:
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      message: This Idempotency-Key was already used with a different request body.
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
         '422':
@@ -1155,11 +1162,43 @@ paths:
                       refundRequiredByPayer: true
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
+                quoteMismatch:
+                  value:
+                    error:
+                      code: QUOTE_MISMATCH
+                      message: The booking dates do not match the quote. Request a new quote.
+                      refundRequiredByPayer: true
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                insufficient:
+                  value:
+                    error:
+                      code: INSUFFICIENT_AVAILABILITY
+                      message: The held rooms are no longer available.
+                      refundRequiredByPayer: true
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
                 paymentBound:
                   value:
                     error:
                       code: PAYMENT_ALREADY_BOUND
                       message: The payment is already bound to a booking. Reconcile the CP order; do not refund it automatically.
+                      refundRequiredByPayer: false
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                orderBound:
+                  value:
+                    error:
+                      code: ORDER_ALREADY_BOUND
+                      message: This CP order is already bound to a booking. Reconcile it with PP-OP-08 (orderId).
+                      refundRequiredByPayer: false
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                quoteConsumed:
+                  value:
+                    error:
+                      code: QUOTE_ALREADY_CONSUMED
+                      message: This quote was already used by another booking.
                       refundRequiredByPayer: false
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
@@ -1194,11 +1233,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               examples:
+                quantity:
+                  value:
+                    error:
+                      code: BOOKING_QUANTITY_EXCEEDS_GUESTS
+                      message: Requested room quantity (4) must not exceed adults + children (3).
+                      details:
+                      - field: quantity
+                        issue: must be <= adults + children
+                      refundRequiredByPayer: true
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                occupancy:
+                  value:
+                    error:
+                      code: OCCUPANCY_EXCEEDED
+                      message: 5 guests exceed the capacity of 2 rooms x 2 guests.
+                      refundRequiredByPayer: true
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
                 notCaptured:
                   value:
                     error:
                       code: PAYMENT_NOT_CAPTURED
                       message: PaymentIntent pi_3QAbCdTEST0001 has no successful capture to return.
+                      refundRequiredByPayer: false
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                referenceMismatch:
+                  value:
+                    error:
+                      code: PAYMENT_REFERENCE_MISMATCH
+                      message: chargeReference does not belong to the submitted PaymentIntent.
                       refundRequiredByPayer: false
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
@@ -1641,7 +1707,8 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
         '409':
-          description: Booking already final, or cancellation window closed (Decision D-08).
+          description: Booking already final, cancellation window closed (Decision D-08), or Idempotency-Key reused with a
+            different body.
           headers:
             X-Request-Id:
               description: Echo of the request header
@@ -1675,6 +1742,13 @@ paths:
                     error:
                       code: CANCELLATION_WINDOW_CLOSED
                       message: Customers can cancel only before the check-in date.
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                idempotency:
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      message: This Idempotency-Key was already used with a different request body.
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
       security:
@@ -1753,7 +1827,9 @@ paths:
                     bookingId: 8c9d0e1f-0000-4000-8000-000000000801
                     customerId: 7d1e2f30-0000-4000-8000-000000000901
                     providerId: 5b1c2d3e-0000-4000-8000-000000000150
+                    providerName: Thu Bon Family Stays
                     branchId: 9a8b7c6d-0000-4000-8000-000000000250
+                    branchName: Riverside Homestay Hoi An
                     stayStartDate: '2027-04-10'
                     stayEndDate: '2027-04-13'
                     reviewableFrom: '2027-04-10'
@@ -2138,7 +2214,8 @@ components:
               value:
                 error:
                   code: RATE_LIMITED
-                  message: Rate limit of 120 requests per 60 s exceeded.
+                  message: Rate limit exceeded for this scope (see common/01-conventions.md Section 7). Retry after the Retry-After
+                    interval.
                   requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                   timestamp: '2026-11-20T11:00:00Z'
     ServiceUnavailable:
@@ -2249,7 +2326,8 @@ components:
       - SIMULATED
       - DIRECT
       - ESCROW
-      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = Ultimo (Decision D-07).
+      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = optional Ultimo flow that replaces DIRECT for the bookings
+        that use it (Decision D-07).
     PaymentGateway:
       type: string
       enum:

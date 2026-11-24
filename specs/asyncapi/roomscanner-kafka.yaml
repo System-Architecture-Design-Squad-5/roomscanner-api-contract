@@ -278,7 +278,7 @@ operations:
       $ref: '#/channels/ratingStatsRequest'
     title: Request rating statistics
     description: PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03). Served by
-      CP's Modular Monolith RatingModule (with standby redundant consumer in group cp-rating-service, CP-RATING-U01).
+      CP's Modular Monolith RatingModule; a second monolith instance joins group cp-rating-service for redundancy (CP-RATING-U01).
     messages:
     - $ref: '#/channels/ratingStatsRequest/messages/ratingStatisticsRequest'
     reply:
@@ -2055,7 +2055,9 @@ components:
             bookingId: 8c9d0e1f-0000-4000-8000-000000000801
             customerId: 7d1e2f30-0000-4000-8000-000000000901
             providerId: 5b1c2d3e-0000-4000-8000-000000000150
+            providerName: Thu Bon Family Stays
             branchId: 9a8b7c6d-0000-4000-8000-000000000250
+            branchName: Riverside Homestay Hoi An
             stayStartDate: '2027-04-10'
             stayEndDate: '2027-04-13'
             reviewableFrom: '2027-04-10'
@@ -3009,7 +3011,8 @@ components:
     EventFavoriteChanged:
       name: EventFavoriteChanged
       title: Event favorite changed
-      summary: CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed (CP-OP-05).
+      summary: CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed or it was
+        deleted (CP-OP-05).
       contentType: application/json
       correlationId:
         $ref: '#/components/correlationIds/envelopeCorrelation'
@@ -3101,7 +3104,36 @@ components:
                 - status
               - required:
                 - idempotencyKey
-        description: CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed (CP-OP-05).
+          - type: object
+            properties:
+              type:
+                enum:
+                - EVENT_DELETED
+              source:
+                enum:
+                - CP
+              payload:
+                allOf:
+                - $ref: '#/components/schemas/EventFavoriteChanged'
+                - type: object
+                  properties:
+                    changeType:
+                      enum:
+                      - EVENT_DELETED
+            not:
+              anyOf:
+              - required:
+                - replyTo
+              - required:
+                - attempt
+              - required:
+                - deadline
+              - required:
+                - status
+              - required:
+                - idempotencyKey
+        description: CP tells PP that a Premium customer favorited or unfavorited an event, or that its dates changed or it
+          was deleted (CP-OP-05).
       bindings:
         kafka:
           key:
@@ -3179,6 +3211,28 @@ components:
               timeZone: Asia/Ho_Chi_Minh
               startDate: '2027-04-14'
               endDate: '2027-04-20'
+              searchRoute: /search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13
+      - name: eventDeleted
+        payload:
+          messageId: 3e550000-0000-4000-8000-000000000d04
+          correlationId: e7e70000-0000-4000-8000-000000000c01
+          traceId: 7ace0000-0000-4000-8000-000000000001
+          type: EVENT_DELETED
+          schemaVersion: '1.0'
+          source: CP
+          timestamp: '2027-01-07T03:00:00Z'
+          payload:
+            changeType: EVENT_DELETED
+            event:
+              eventId: e7e70000-0000-4000-8000-000000000c01
+              name: Hùng Kings' Temple Festival
+              summary: National festival honouring the Hùng Kings with processions, folk games and xoan singing.
+              locationName: Hùng Kings' Temple, Viet Tri City, Phu Tho
+              city: Viet Tri
+              country: VN
+              timeZone: Asia/Ho_Chi_Minh
+              startDate: '2027-04-12'
+              endDate: '2027-04-18'
               searchRoute: /search?city=Viet%20Tri&country=VN&checkIn=2027-04-12&checkOut=2027-04-13
     RegionalEventNotification:
       name: RegionalEventNotification
@@ -3334,7 +3388,8 @@ components:
       - SIMULATED
       - DIRECT
       - ESCROW
-      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = Ultimo (Decision D-07).
+      description: SIMULATED = Simplex, DIRECT = Medium, ESCROW = optional Ultimo flow that replaces DIRECT for the bookings
+        that use it (Decision D-07).
     PaymentGateway:
       type: string
       enum:
@@ -4415,9 +4470,15 @@ components:
           type: string
           description: Review target. Reviews are per provider, not per room.
           format: uuid
+        providerName:
+          type: string
+          description: Accommodation provider company name
         branchId:
           type: string
           format: uuid
+        branchName:
+          type: string
+          description: Booked branch property name
         stayStartDate:
           type: string
           format: date
@@ -5041,6 +5102,18 @@ components:
           changeType:
             enum:
             - EVENT_DATES_CHANGED
+        not:
+          anyOf:
+          - required:
+            - favoriteId
+          - required:
+            - customerId
+          - required:
+            - favoritedAt
+      - properties:
+          changeType:
+            enum:
+            - EVENT_DELETED
         not:
           anyOf:
           - required:

@@ -57,6 +57,7 @@ Customer Portal is the authoritative owner of customer accounts and \$100/year P
 {
   "messageId": "7d1e2f30-0000-4000-8000-000000000909",
   "correlationId": "0c4a7d22-0000-4000-8000-00000000c0bb",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "causationId": "0c4a7d22-0000-4000-8000-00000000c002",
   "type": "GET_MEMBERSHIP_RESULT",
   "schemaVersion": "1.0",
@@ -77,8 +78,10 @@ Customer Portal is the authoritative owner of customer accounts and \$100/year P
 CP routes customer membership lookups directly to the customer's account shard (`countryOfResidence` shard key via Redis mapping) without scatter-gather scans.
 
 ### Errors
+- `400 VALIDATION_ERROR`: `customerId` is not a UUID.
 - `404 RESOURCE_NOT_FOUND`: unknown `customerId`.
 - `503 SERVICE_UNAVAILABLE`: shard or Redis routing unavailable. PP fails closed: no Premium discount is applied without verification (`D-06`).
+- `401 PARTNER_UNAUTHENTICATED` / `403 PARTNER_FORBIDDEN` / `429 RATE_LIMITED`: standard partner errors, see `common/01-conventions.md` (read limit: 120 requests per 60 s).
 
 ```json
 {

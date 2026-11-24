@@ -107,7 +107,7 @@ S["MembershipStatus"] = enum(["ACTIVE", "EXPIRED", "NONE"], "Customer membership
 S["BookingStatus"] = enum(["PENDING_APPROVAL", "CONFIRMED", "CANCELLED", "COMPLETED"],
                           "Authoritative booking status owned by PP. PENDING_APPROVAL has no automatic expiry (PP-BOOK-S02).")
 S["CancelledBy"] = enum(["CUSTOMER", "RECEPTIONIST"], "Actor that cancelled the booking.")
-S["PaymentMode"] = enum(["SIMULATED", "DIRECT", "ESCROW"], "SIMULATED = Simplex, DIRECT = Medium, ESCROW = Ultimo (Decision D-07).")
+S["PaymentMode"] = enum(["SIMULATED", "DIRECT", "ESCROW"], "SIMULATED = Simplex, DIRECT = Medium, ESCROW = optional Ultimo flow that replaces DIRECT for the bookings that use it (Decision D-07).")
 S["PaymentGateway"] = enum(["NONE", "PAYPAL_SANDBOX", "STRIPE_SANDBOX"], "Payment gateway used for the booking (Decision D-07).")
 S["PaymentState"] = enum(["SIMULATED_ISSUED", "CAPTURED", "CAPTURED_HELD"], "Payer-side payment state reported by CP in CreateBooking.")
 S["ReturnPaymentStatus"] = enum(["NOT_REQUIRED", "PENDING", "SUCCEEDED", "FAILED"],
@@ -558,6 +558,8 @@ S["EventFavoriteChanged"]["oneOf"] = [
      "required": ["favoriteId", "customerId"]},
     {"properties": {"changeType": {"enum": ["EVENT_DATES_CHANGED"]}},
      **absent("favoriteId", "customerId", "favoritedAt")},
+    {"properties": {"changeType": {"enum": ["EVENT_DELETED"]}},
+     **absent("favoriteId", "customerId", "favoritedAt")},
 ]
 S["RegionalEventNotification"] = obj({
     "notificationId": uuid("CP de-duplicates on this"),
@@ -753,7 +755,7 @@ STD_RESPONSES = {
     "Unauthorized": err_resp("Missing, expired or invalid partner token or signature.", {"unauthenticated": ex(err("PARTNER_UNAUTHENTICATED", "The partner access token is missing or expired."))}),
     "Forbidden": err_resp("Token lacks the required scope, or the resource is outside the agreed data scope.", {"forbidden": ex(err("PARTNER_FORBIDDEN", "Scope booking:write is required."))}),
     "NotFound": err_resp("Unknown or archived resource.", {"notFound": ex(err("RESOURCE_NOT_FOUND", "The requested resource does not exist."))}),
-    "TooManyRequests": err_resp("Rate limit exceeded (BE-U04).", {"rateLimited": ex(err("RATE_LIMITED", "Rate limit of 120 requests per 60 s exceeded."))}, retry_after=True),
+    "TooManyRequests": err_resp("Rate limit exceeded (BE-U04).", {"rateLimited": ex(err("RATE_LIMITED", "Rate limit exceeded for this scope (see common/01-conventions.md Section 7). Retry after the Retry-After interval."))}, retry_after=True),
     "ServiceUnavailable": err_resp("Destination down or circuit open. Always distinct from 4xx business errors.", {"unavailable": ex(err("SERVICE_UNAVAILABLE", "The service is temporarily unavailable. Retry later."))}, retry_after=True),
 }
 
@@ -852,10 +854,10 @@ def info(title, desc):
             "contact": {"name": "RoomScanner squad API contract", "url": "https://github.com/SQUAD-ORGANIZATION/roomscanner-api-contract"}}
 
 
-def servers(port, prefix, deployed_desc="Deployed, through the API Gateway on Machine 4"):
+def servers(port, host, deployed_desc="Deployed, through the API Gateway on Machine 4"):
     return [
         {"url": f"http://localhost:{port}/api/v1/partner", "description": "Local / Simplex"},
-        {"url": f"https://{prefix}-gateway.{{squad}}.roomscanner.local/api/v1/partner",
+        {"url": f"https://{host}.{{squad}}.roomscanner.local/api/v1/partner",
          "description": deployed_desc,
          "variables": {"squad": {"default": "squad", "description": "Squad identifier"}}},
     ]
@@ -929,7 +931,9 @@ pp_paths["/quotes"] = {"post": op(
     body(ref("QuoteRequest"), {"premium": ex(QUOTE_REQ, "Premium customer, 2 rooms x 3 nights")}),
     {**ok("Quote created.", ref("Quote"), {"premium": ex(QUOTE)}, code="201"),
      **std_errors("400", "401", "403", "404", "429"),
-     "409": err_resp("Not enough rooms available.", {"insufficient": ex(err("INSUFFICIENT_AVAILABILITY", "Only 1 room is available for these dates.", availableQuantity=1))}),
+     "409": err_resp("Not enough rooms available, or the Idempotency-Key was reused with a different body.",
+                     {"insufficient": ex(err("INSUFFICIENT_AVAILABILITY", "Only 1 room is available for these dates.", availableQuantity=1)),
+                      "idempotency": ex(err("IDEMPOTENCY_CONFLICT", "This Idempotency-Key was already used with a different request body."))}),
      "422": err_resp("Business rule violation.", {"quantity": ex(err("BOOKING_QUANTITY_EXCEEDS_GUESTS", "Requested room quantity (4) must not exceed adults + children (3).", [{"field": "quantity", "issue": "must be <= adults + children"}])),
                                                  "occupancy": ex(err("OCCUPANCY_EXCEEDED", "5 guests exceed the capacity of 2 rooms x 2 guests."))}),
      "503": err_resp("Service unavailable, or Premium membership could not be verified (fail closed).",
@@ -950,10 +954,17 @@ pp_paths["/bookings"] = {"post": op(
      "409": err_resp("Quote expired/mismatched/consumed, eligibility changed, availability lost, or duplicate business identity.",
                      {"quoteExpired": ex(err("QUOTE_EXPIRED", "The price quote has expired. Request a new quote.", refundRequiredByPayer=True)),
                       "eligibilityChanged": ex(err("MEMBERSHIP_ELIGIBILITY_CHANGED", "Premium eligibility changed before booking creation. Request a new quote.", refundRequiredByPayer=True)),
+                      "quoteMismatch": ex(err("QUOTE_MISMATCH", "The booking dates do not match the quote. Request a new quote.", refundRequiredByPayer=True)),
+                      "insufficient": ex(err("INSUFFICIENT_AVAILABILITY", "The held rooms are no longer available.", refundRequiredByPayer=True)),
                       "paymentBound": ex(err("PAYMENT_ALREADY_BOUND", "The payment is already bound to a booking. Reconcile the CP order; do not refund it automatically.", refundRequiredByPayer=False)),
+                      "orderBound": ex(err("ORDER_ALREADY_BOUND", "This CP order is already bound to a booking. Reconcile it with PP-OP-08 (orderId).", refundRequiredByPayer=False)),
+                      "quoteConsumed": ex(err("QUOTE_ALREADY_CONSUMED", "This quote was already used by another booking.", refundRequiredByPayer=False)),
                       "idempotency": ex(err("IDEMPOTENCY_CONFLICT", "This Idempotency-Key was used with a different request body.", refundRequiredByPayer=False))}),
      "422": err_resp("Business rule or payment verification failure.",
-                     {"notCaptured": ex(err("PAYMENT_NOT_CAPTURED", "PaymentIntent pi_3QAbCdTEST0001 has no successful capture to return.", refundRequiredByPayer=False)),
+                     {"quantity": ex(err("BOOKING_QUANTITY_EXCEEDS_GUESTS", "Requested room quantity (4) must not exceed adults + children (3).", [{"field": "quantity", "issue": "must be <= adults + children"}], refundRequiredByPayer=True)),
+                      "occupancy": ex(err("OCCUPANCY_EXCEEDED", "5 guests exceed the capacity of 2 rooms x 2 guests.", refundRequiredByPayer=True)),
+                      "notCaptured": ex(err("PAYMENT_NOT_CAPTURED", "PaymentIntent pi_3QAbCdTEST0001 has no successful capture to return.", refundRequiredByPayer=False)),
+                      "referenceMismatch": ex(err("PAYMENT_REFERENCE_MISMATCH", "chargeReference does not belong to the submitted PaymentIntent.", refundRequiredByPayer=False)),
                       "amountMismatch": ex(err("PAYMENT_AMOUNT_MISMATCH", "Paid amount 12000 does not equal the quote total 12750.", refundRequiredByPayer=True))}),
      "503": R("ServiceUnavailable")},
     "rs.booking.request.v1 (type=CREATE_BOOKING, key customerId) -> rs.booking.response.v1 (type=CREATE_BOOKING_RESULT)",
@@ -989,9 +1000,10 @@ pp_paths["/bookings/{bookingId}/cancellations"] = {"post": op(
     body(ref("CancelBookingRequest"), {"default": ex({"customerId": IDS["customer"], "reason": "Change of travel plans"})}),
     {**ok("Booking cancelled.", ref("BookingSummary"), {"default": ex(CANCELLED)}),
      **std_errors("400", "401", "403", "404", "429", "503"),
-     "409": err_resp("Booking already final, or cancellation window closed (Decision D-08).",
+     "409": err_resp("Booking already final, cancellation window closed (Decision D-08), or Idempotency-Key reused with a different body.",
                      {"state": ex(err("STATE_CONFLICT", "The booking is already CANCELLED.")),
-                      "window": ex(err("CANCELLATION_WINDOW_CLOSED", "Customers can cancel only before the check-in date."))})},
+                      "window": ex(err("CANCELLATION_WINDOW_CLOSED", "Customers can cancel only before the check-in date.")),
+                      "idempotency": ex(err("IDEMPOTENCY_CONFLICT", "This Idempotency-Key was already used with a different request body."))})},
     "rs.booking.request.v1 (type=CANCEL_BOOKING, key bookingId) -> rs.booking.response.v1 (type=CANCEL_BOOKING_RESULT)",
     "PP-BOOK-S02, PP-MONEY-S01, M02; CP-MONEY-M03, U03")}
 
@@ -1028,7 +1040,7 @@ documents remain the source for business rules (`common/03-agreed-decisions.md`)
 PP pushes booking status changes to CP through CP's webhook (`POST /booking-events` in the Customer Portal specification) at Simplex and Medium,
 and through the `rs.booking.events.v1` topic at Ultimo.
 """),
-    "servers": servers(8080, "pp", "Deployed (PP Microservices via PP API Gateway + Service Discovery on Machine 4)"),
+    "servers": servers(8080, "pp-gateway", "Deployed (PP Microservices via PP API Gateway + Service Discovery on Machine 4)"),
     "tags": [
         {"name": "Partner authentication", "description": "Client-credentials token for partner calls (INT-M03)"},
         {"name": "Search and catalogue", "description": "PP-01: authoritative search and room catalogue"},
@@ -1084,9 +1096,9 @@ cp_doc = {
 REST API that the **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01` to `BE-M08`) provides to the **Provider Portal (PP)** (*Microservices architecture*, `BE-U01` to `BE-U09`).
 This file is the machine-readable form of `customer-portal/CP-01` to `CP-04` (indexed in `customer-portal/CP-services-required-by-PP.md`). CP owns these operations and has reviewed and confirmed this specification.
 Within CP's Modular Monolith, `PartnerIntegrationModule` dispatches requests in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
-At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a standby redundant rating instance in consumer group `cp-rating-service`.
+At Ultimo the same payloads are exchanged over Kafka (see `specs/asyncapi/roomscanner-kafka.yaml`), with a second instance of the CP modular monolith whose rating consumer also joins group `cp-rating-service`.
 """),
-    "servers": servers(9080, "cp", "Deployed (CP Modular Monolith PartnerIntegrationModule)"),
+    "servers": servers(9080, "cp-api", "Deployed (CP Modular Monolith, single deployable; no API Gateway; served by PartnerIntegrationModule)"),
     "tags": [
         {"name": "Partner authentication", "description": "Client-credentials token for partner calls (INT-M03)"},
         {"name": "Ratings", "description": "CP-owned review statistics"},
@@ -1127,7 +1139,7 @@ RESPONSE_PAYLOADS = {
 }
 BOOKING_EVENT_TYPES = ["BOOKING_CONFIRMED", "BOOKING_CANCELLED", "BOOKING_COMPLETED",
                        "RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"]
-FAVORITE_EVENT_TYPES = ["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED"]
+FAVORITE_EVENT_TYPES = ["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED", "EVENT_DELETED"]
 MUTATING_REQUESTS = {"CREATE_QUOTE", "CREATE_BOOKING", "CANCEL_BOOKING"}
 
 
@@ -1341,6 +1353,8 @@ _more("EventFavoriteChanged", [
                             correlation="fa7e0000-0000-4000-8000-000000000b02", mid="3e550000-0000-4000-8000-000000000d02", ts="2027-01-05T03:00:00Z")),
     ("datesChanged", env_example("EVENT_DATES_CHANGED", "CP", {"changeType": "EVENT_DATES_CHANGED", "event": dict(EVENT, startDate="2027-04-14", endDate="2027-04-20")},
                                  correlation=IDS["event"], mid="3e550000-0000-4000-8000-000000000d03", ts="2027-01-06T03:00:00Z")),
+    ("eventDeleted", env_example("EVENT_DELETED", "CP", {"changeType": "EVENT_DELETED", "event": EVENT},
+                                 correlation=IDS["event"], mid="3e550000-0000-4000-8000-000000000d04", ts="2027-01-07T03:00:00Z")),
 ])
 
 _more("BookingStatusEvent", [
@@ -1398,7 +1412,7 @@ operations = {
     "serveSearchRequests": aop("receive", "searchRequest", "Serve search requests", "PP consumes search requests and replies on rs.search.response.v1 with the same correlationId (PP-SEARCH-U02, PP-ROOM-U02).", "searchResponse", "pp-search-service"),
     "serveBookingRequests": aop("receive", "bookingRequest", "Serve booking requests", "PP consumes quote/booking/cancellation requests. Both booking-service instances join the same consumer group, so Kafka fails over to the redundant instance (PP-BOOK-U01).", "bookingResponse", "pp-booking-service"),
     "publishBookingEvents": aop("send", "bookingEvents", "Publish booking status events", "PP publishes every booking transition through a transactional outbox (PP-OP-11)."),
-    "requestRatingStatistics": aop("send", "ratingStatsRequest", "Request rating statistics", "PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03). Served by CP's Modular Monolith RatingModule (with standby redundant consumer in group cp-rating-service, CP-RATING-U01).", "ratingStatsResponse"),
+    "requestRatingStatistics": aop("send", "ratingStatsRequest", "Request rating statistics", "PP requests provider statistics on demand and resends on timeout (PP-RATING-U01, U02, INT-U03). Served by CP's Modular Monolith RatingModule; a second monolith instance joins group cp-rating-service for redundancy (CP-RATING-U01).", "ratingStatsResponse"),
     "requestMembership": aop("send", "membershipRequest", "Request membership", "PP verifies Premium membership before applying a discount (Decision D-06). Served by CP's Modular Monolith EventModule (group cp-membership-service).", "membershipResponse"),
     "receiveEventFavorites": aop("receive", "eventFavorite", "Receive event favorite changes", "PP schedules or publishes regional event notifications (Decision D-12).", group="pp-event-service"),
     "publishEventNotifications": aop("send", "eventNotification", "Publish regional event notifications", "PP publishes to the CP-created topic; CP's dedicated consumer (group cp-event-notification-consumer) displays it to eligible Premium customers (PP-EVENT-U01, U02; CP-EVENT-U02)."),

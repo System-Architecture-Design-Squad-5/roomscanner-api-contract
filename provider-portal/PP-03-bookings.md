@@ -184,6 +184,7 @@
 | 409 | `INSUFFICIENT_AVAILABILITY` | true if already paid |
 | 409 | `IDEMPOTENCY_CONFLICT` | false (the original request still stands) |
 | 503 | `SERVICE_UNAVAILABLE` / `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | false. **Retry with the same Idempotency-Key**; the booking may already exist. |
+| 401 / 403 / 429 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` / `RATE_LIMITED` | false (request not processed; write limit: 30 requests per 60 s) |
 
 The `true if already paid` entries above also require the durable, unbound terminal-rejection check. In particular, a malformed request or a failed dependency response is not sufficient evidence that compensation is safe.
 
@@ -259,6 +260,7 @@ The `customerId` is required, and must own the booking (otherwise `404`, so the 
 | 400 | `VALIDATION_ERROR` | `customerId` missing or not a UUID |
 | 401 / 403 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` | Token missing, invalid, or without `booking:read` |
 | 404 | `RESOURCE_NOT_FOUND` | Unknown booking, or not owned by `customerId` |
+| 429 | `RATE_LIMITED` | Read limit: 120 requests per 60 s |
 | 503 | `SERVICE_UNAVAILABLE` | Booking service unavailable on every instance |
 
 ---
@@ -326,6 +328,7 @@ Response: `{ "items": BookingSummary[], "pageInfo": {...} }`
 | 400 | `VALIDATION_ERROR` | Unknown `status` value, `stayTo` before `stayFrom`, or `limit` outside 1-50 |
 | 400 | `INVALID_CURSOR` | Cursor tampered with or expired |
 | 401 / 403 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` | Token missing, invalid, or without `booking:read` |
+| 429 | `RATE_LIMITED` | Read limit: 120 requests per 60 s |
 | 503 | `SERVICE_UNAVAILABLE` | Booking service unavailable |
 
 An unknown `customerId` is not an error: the response is `200` with an empty `items` array, so customer existence is not disclosed.
@@ -398,9 +401,13 @@ A `BookingSummary` with `status=CANCELLED`, the `cancellation` filled, and `paym
 ### Errors
 | HTTP | Code | When |
 |---|---|---|
+| 400 | `VALIDATION_ERROR` | `customerId` missing or not a UUID, or `reason` over 500 characters |
 | 404 | `RESOURCE_NOT_FOUND` | Unknown booking, or not owned by `customerId` |
 | 409 | `STATE_CONFLICT` | Already `CANCELLED` or `COMPLETED`. A repeat with the same `Idempotency-Key` returns the original `200` instead. |
 | 409 | `CANCELLATION_WINDOW_CLOSED` | Today ≥ `checkInDate` (D-08) |
+| 409 | `IDEMPOTENCY_CONFLICT` | Same `Idempotency-Key` reused with a different body |
+| 503 | `SERVICE_UNAVAILABLE` | Booking service unavailable on every instance. Retry with the same `Idempotency-Key`. |
+| 401 / 403 / 429 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` / `RATE_LIMITED` | Standard partner errors (write limit: 30 requests per 60 s) |
 
 ---
 
@@ -460,6 +467,8 @@ A `BookingSummary` with `status=CANCELLED`, the `cancellation` filled, and `paym
 | 400 | `VALIDATION_ERROR` | `customerId` missing or not a UUID |
 | 401 / 403 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` | Token missing, invalid, or without `booking:read` |
 | 404 | `RESOURCE_NOT_FOUND` | Unknown booking |
+| 429 | `RATE_LIMITED` | Read limit: 120 requests per 60 s |
+| 503 | `SERVICE_UNAVAILABLE` | Booking service unavailable |
 
 A booking owned by a different customer returns `200` with `eligible=false` and `reason=NOT_BOOKING_OWNER`, so CP can show a precise message without PP disclosing booking details (only the IDs in the request are echoed).
 

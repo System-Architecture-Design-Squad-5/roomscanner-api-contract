@@ -6,15 +6,15 @@
 | Contract deadline | Friday 20 November 2026, 18:00 ICT |
 | Status | Agreed (CP Reviewed) |
 | Squad | `5` |
-| Sub-region and countries | `[SUB-REGION]`; `[COUNTRY 1]`, `[COUNTRY 2]` (examples in this contract use Vietnam (VN) and Thailand (TH)) |
+| Sub-region and countries | Southeast Asia; Vietnam (`VN`) and Singapore (`SG`). "Country" is where the accommodation is located (lecturer answer, 23 Nov 2026). |
 | Provider Portal team | `Team 9` |
 | Customer Portal team | `Team 10` |
 | Repository | `https://github.com/System-Architecture-Design-Squad-5/roomscanner-api-contract` |
 
 This repository is the single source of truth for every interaction between the two RoomScanner subsystems:
 
-- **Provider Portal (PP)** (*Microservices architecture*, `BE-U01`–`BE-U09`): the authoritative owner of providers, branches, rooms, availability, discount policies, reservations/bookings and beneficiary-side payment outcomes.
-- **Customer Portal (CP)** (*Modular Monolith architecture*, `BE-M01`–`BE-M08`): the authoritative owner of customers, Premium membership, regional events and favorites, reviews and rating statistics, and payer-side payment initiation.
+- **Provider Portal (PP)** (*frontend Ultimo, headless components*; *backend Ultimo, microservices*, `BE-U01`–`BE-U09`): the authoritative owner of providers, branches, rooms, availability, discount policies, reservations/bookings and beneficiary-side payment outcomes.
+- **Customer Portal (CP)** (*frontend Ultimo, headless components*; *backend Medium, modular monolith*, `BE-M01`–`BE-M08`): the authoritative owner of customers, Premium membership, regional events and favorites, reviews and rating statistics, and payer-side payment initiation.
 
 The contract is published in two equivalent forms:
 
@@ -71,12 +71,10 @@ roomscanner-api-contract/
 |   |   `-- customer-portal-partner-api.yaml   REST API provided by CP (OpenAPI 3.0.3)
 |   `-- asyncapi/
 |       `-- roomscanner-kafka.yaml             Kafka topics and messages (AsyncAPI 3.0.0)
-|-- tools/
-|   |-- generate_specs.py              regenerates specs/ from one shared schema set
-|   |-- validate_specs.py              validates examples, schema regressions and generator sync
-|   `-- requirements-validation.txt    pinned validation dependencies
-`-- .github/
-    `-- pull_request_template.md       review checklist with one reviewer per team (TW-M02)
+`-- tools/
+    |-- generate_specs.py              regenerates specs/ from one shared schema set
+    |-- validate_specs.py              validates examples, schema regressions and generator sync
+    `-- requirements-validation.txt    pinned validation dependencies
 ```
 
 ### 2.1 Viewing and validating the machine-readable specification
@@ -182,7 +180,7 @@ The contract is binding for Milestone 1 once both teams have signed off below. D
 | TW-S06 | Endpoint, protocol, brief description, abstract request/response for every API supplied to the partner, by Friday of Week N-2 | Section 3 index; every operation section in `provider-portal/` and `customer-portal/` |
 | TW-M01 | JSON request and response structures with fields and data types | Field tables in every operation; `common/02-shared-types.md`; `specs/` schemas |
 | TW-U04 | Example JSON objects for every endpoint | Example blocks in every operation; `examples` in `specs/openapi/*.yaml` and the AsyncAPI messages |
-| TW-M02 | Reviewer assigned alongside the owner; feedback addressed | Section 5 change process; `.github/pull_request_template.md` |
+| TW-M02 | Reviewer assigned alongside the owner; feedback addressed | Section 5 change process; PR reviews (one reviewer from each team) |
 | INT-S01, INT-S02 | Backend APIs for the partner; mocks allowed at Simplex | REST bindings of every operation |
 | INT-M01, INT-M02 | Real partner REST in both directions | Section 3.1 (PP provides) and Section 3.2 (CP provides) |
 | INT-M03 | Authenticate and authorize partner APIs; reject untrusted systems | `common/01-conventions.md` Section 4 (client credentials, scopes, webhook HMAC, IP allowlist) |

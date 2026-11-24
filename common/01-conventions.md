@@ -11,12 +11,20 @@ Partner-facing APIs are kept separate from frontend-facing APIs (such as CP's `/
 | PP | Local / Simplex | `http://localhost:8080/api/v1/partner` |
 | PP | Deployed (Microservices via PP API Gateway + Service Discovery, Machine 4) | `https://pp-gateway.<squad>.roomscanner.local/api/v1/partner` |
 | CP | Local / Simplex | `http://localhost:9080/api/v1/partner` |
-| CP | Deployed (Modular Monolith `PartnerIntegrationModule`) | `https://cp-gateway.<squad>.roomscanner.local/api/v1/partner` |
+| CP | Deployed (Modular Monolith, one deployable; no API Gateway; `PartnerIntegrationModule`) | `https://cp-api.<squad>.roomscanner.local/api/v1/partner` |
 | Kafka | Deployed (Machine 4) | `kafka.<squad>.roomscanner.local:9093` (SASL_SSL) |
 
-**Subsystem architectures (Common Req. §5):**
+**Subsystem architectures (Common Req. §5, chosen independently per team):**
+
+| Team | Frontend | Backend |
+|---|---|---|
+| Provider Portal (PP) | **Ultimo**: headless components (`FE-U01`, `FE-U02`) | **Ultimo**: microservices (`BE-U01`–`BE-U09`) |
+| Customer Portal (CP) | **Ultimo**: headless components (`FE-U01`, `FE-U02`) | **Medium**: modular monolith (`BE-M01`–`BE-M08`) |
+
+Frontends never call the partner subsystem directly; each frontend talks only to its own backend, and backends talk to each other through this contract.
+
 - **Provider Portal (PP)** uses a **Microservices** architecture (`BE-U01`–`BE-U09`). Its API Gateway resolves partner routes through **service discovery** (`BE-U05`, `BE-U06`), keeping the redundant booking service (`PP-BOOK-U01`) transparent to CP.
-- **Customer Portal (CP)** uses a **Modular Monolith** architecture (`BE-M01`–`BE-M08`). Partner authentication, rate limiting, and webhook verification are enforced in CP's Cross-Cutting Layer (`BE-S03`), and requests are handled by `PartnerIntegrationModule` and dispatched in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
+- **Customer Portal (CP)** uses a **Modular Monolith** architecture (`BE-M01`–`BE-M08`). Partner authentication, rate limiting, and webhook verification are enforced in CP's shared cross-cutting security/filter layer, outside the business modules, and requests are handled by `PartnerIntegrationModule` and dispatched in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
 
 ## 2. Data formats
 
@@ -40,8 +48,9 @@ Partner-facing APIs are kept separate from frontend-facing APIs (such as CP's `/
 |---|---|---|---|
 | `Authorization: Bearer <partnerToken>` | request | Medium+ | Partner access token (§4) |
 | `X-Request-Id` | request/response | yes | UUID per HTTP call. The server echoes it. |
-| `X-Correlation-Id` (or `X-Correlation-ID`) | request/response | yes | UUID shared by every call in one business flow (e.g. quote → booking → events). HTTP header matching is case-insensitive. |
-| `Idempotency-Key` | request | yes on `POST` that creates or cancels | UUID. A retry with the same key returns the **original** result without a second side effect. Kept for 24 h in Redis. |
+| `X-Correlation-Id` (or `X-Correlation-ID`) | request/response | yes | UUID for **one logical operation**; reused only for that operation's transport retries and its response. Maps to Kafka `correlationId` (`04-kafka.md` §1). HTTP header matching is case-insensitive. |
+| `X-Trace-Id` | request/response | yes | UUID shared by every call in one **business flow** (e.g. quote → booking → events). Maps to Kafka `traceId`. Never used for correlation or de-duplication. |
+| `Idempotency-Key` | request | yes on `POST` that creates or cancels | UUID scoped to the authenticated partner and operation. A retry with the same key returns the **original** result without a second side effect. Replay responses are cached for 24 h in Redis; booking/order/payment uniqueness is durable and outlives the cache (PP-03). Maps to Kafka `idempotencyKey`. |
 | `X-RS-Signature` | webhook request | Medium+ | HMAC signature for PP → CP webhooks (§4.3) |
 | `X-RateLimit-Limit` / `-Remaining` / `-Reset` | response | yes | Rate-limit status (§7) |
 | `Retry-After` | response | on 429/503 | Seconds before the client should retry |
@@ -198,12 +207,12 @@ Response wrapper:
 
 ## 7. Rate limits
 
-These are applied per partner `clientId` at the subsystem edge/gateway with a Redis-backed sliding window (whether deployed as a Modular Monolith or Microservices).
+These are applied per partner `clientId` with a Redis-backed sliding window: by PP at its API Gateway (`BE-U04`, `BE-U05`), and by CP in its cross-cutting filter layer in front of `PartnerIntegrationModule` (CP has no API Gateway).
 
 | Scope | Threshold | Window | When exceeded |
 |---|---|---|---|
 | Read operations (`search:read`, `booking:read`, `rating:read`, `membership:read`) | 120 requests | 60 s | `429 RATE_LIMITED` + `Retry-After` |
-| Write operations (`quote:write`, `booking:write`, `order:write`) | 30 requests | 60 s | `429 RATE_LIMITED` + `Retry-After` |
+| Write operations (`quote:write`, `booking:write`, `order:write`, `event-suggestion:write`) | 30 requests | 60 s | `429 RATE_LIMITED` + `Retry-After` |
 | Webhooks (`booking-event:write`) | 60 requests | 60 s | `429`. PP backs off as in PP-OP-11. |
 | Token endpoint | 10 requests | 60 s | `429` |
 

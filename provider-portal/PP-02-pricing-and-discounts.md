@@ -124,8 +124,11 @@ The `priceBreakdown` has no `discount` field, and `total` = `subtotal`. `members
 | 422 | `BOOKING_QUANTITY_EXCEEDS_GUESTS` | `quantity > adults + children` |
 | 422 | `OCCUPANCY_EXCEEDED` | `adults + children > quantity × maxOccupancy` |
 | 409 | `INSUFFICIENT_AVAILABILITY` | `availableQuantity < quantity` (D-05). The body includes `availableQuantity`. |
+| 409 | `IDEMPOTENCY_CONFLICT` | Same `Idempotency-Key` reused with a different body |
 | 404 | `RESOURCE_NOT_FOUND` | Room unknown or archived |
 | 503 | `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | CP-OP-02 unreachable **and** the customer claims Premium. PP refuses to guess (fail closed). CP may retry or quote as Standard. |
+| 503 | `SERVICE_UNAVAILABLE` | Booking service unavailable on every instance (PP-BOOK-U01) |
+| 401 / 403 / 429 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` / `RATE_LIMITED` | Standard partner errors, see `common/01-conventions.md` (write limit: 30 requests per 60 s) |
 
 ### Rules
 - **Idempotent:** The same `Idempotency-Key` and body replay the original quote, including its original `holdExpiresAt`; replay never extends or recreates a hold. CP checks that expiry before capture and requests a new quote/key if it is no longer active.

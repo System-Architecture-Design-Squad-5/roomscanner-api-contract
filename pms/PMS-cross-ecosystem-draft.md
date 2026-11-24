@@ -28,7 +28,17 @@
 `pmsRoomId` (globally unique: `<squadId>:<roomId>`), `ownerSquadId`, `providerName`, `branchName`, `category`, `roomType`, `amenities[]`, `location`, `pricePerNight`, `imageUrls[]`, `totalQuantity`, `ratingSummary`, `updatedAt`.
 **Excluded:** provider account data, payment accounts, discount packages (squad-specific), and customer identity beyond `customerId`, `email` and `phone`.
 
-## 5. Open questions for the partner squad
+## 5. Touch points with the CP–PP contract (this repository)
+This draft is **not** part of the CP–PP contract. The binding PMS contract is a separate document agreed with the partner squad; each squad keeps a copy (lecturer answer, 23 Nov 2026). Where the two contracts meet:
+
+| Touch point | CP–PP contract today | Open issue |
+|---|---|---|
+| CP access to PMS rooms | Section 1 routes CP through our PP | The lecturer says **all four teams** must connect to the PMS, and a team that does not connect loses the feature. CP connecting only through PP may not count for CP. Needs a squad decision before this draft is agreed. |
+| Search results containing partner-squad rooms | `ProviderSearchResult` has no `ownerSquadId` / `pmsRoomId` | Any new field is a MINOR change to PP-OP-01 and needs both teams' review. |
+| Bookings of partner-squad rooms | PP-OP-06 accepts only our own `roomId` | Not covered by PP-OP-05/06; to be defined in the PMS contract. |
+| Entitlement | Provider USD 200/year PMS subscription (D-17) | PP-PMS-S02 wording ("premium membership") awaits lecturer confirmation. |
+
+## 6. Open questions for the partner squad
 1. Who hosts and operates the PMS service and its database?
 2. Currency and payment for cross-squad bookings: whose gateway collects?
 3. How do we avoid ID collisions? Proposed: prefix with `squadId`.

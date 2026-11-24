@@ -18,7 +18,7 @@ The SRS documents leave several details to the teams ("teams document fields, ac
 | D-04 | Search result unit and category vs room type | Agreed |
 | D-05 | Availability calculation | Agreed |
 | D-06 | Premium discount calculation, eligibility and policy changes | Agreed |
-| D-07 | Payment gateways per level | Agreed |
+| D-07 | Payment gateways per level | Agreed; Lecturer confirmation (escrow scope) |
 | D-08 | Cancellation rules | Agreed |
 | D-09 | Mapping booking status to CP's three booking groups | Agreed |
 | D-10 | Review eligibility | Agreed |
@@ -34,6 +34,7 @@ The SRS documents leave several details to the teams ("teams document fields, ac
 
 ### D-01 Target integration level and transports
 - **Decision:** The contract is written to **Ultimo** detail (typed fields + examples, TW-U04). Each operation lists its REST binding (Simplex/Medium) and its Kafka binding (Ultimo). The squad implements **one** binding per operation at Milestone 2, matching the selected level.
+- **Frontend levels:** both teams build an **Ultimo** frontend (headless components, `FE-U01`, `FE-U02`). Frontends call only their own backend, never the partner.
 - **Subsystem Architecture Independence (Common Req. §2 & §5):** Backend architecture levels are selected independently per team: **Customer Portal (CP)** uses a **Modular Monolith** (`BE-M01`–`BE-M08`), while **Provider Portal (PP)** uses **Microservices** (`BE-U01`–`BE-U09`). Both subsystems exchange the exact same Ultimo Kafka messages and REST payloads across the partner boundary.
 - **Rationale:** One schema across transports and subsystem architectures means upgrading or deploying either side never changes the contract data, and C4 diagrams show the same payloads at every level.
 
@@ -77,6 +78,7 @@ The SRS documents leave several details to the teams ("teams document fields, ac
 | Simplex | none (`SIMULATED`) | Issues a simulated order | Completes/cancels it via CP-OP-03 |
 | Medium | **PayPal Sandbox** | Orders API: capture to the **provider's PayPal sandbox merchant account** (direct customer-to-provider payment) | On cancellation, a **Payouts API** transfer from the provider account to the customer's PayPal email. This is a separate payment with its own reference (PP-MONEY-M02). |
 | Ultimo | **Stripe Sandbox with Connect** (separate charges and transfers) | PaymentIntent with `capture_method=manual` → **authorize**, then **capture** into the platform balance (held) | On approval: **release** via a Transfer to the provider's connected account (`source_transaction` = charge). The provider's connected account then makes a **Payout** to bank. On cancellation: **refund** the charge. |
+- **Escrow is optional:** PP-MONEY-U01 calls escrow an "optional flow" that replaces Medium payments "for bookings using escrow", and the lecturer lists escrow as an M1 bonus feature. PP §2.6.3, however, says Ultimo "requires" escrow. Until the lecturer answers, both `DIRECT` (PayPal) and `ESCROW` (Stripe) stay documented; `PaymentInfo.mode` tells PP which flow a booking uses. **Open point (lecturer confirmation):** whether escrow fully replaces direct payment at Ultimo.
 - **Shared-platform ownership:** The squad configures one Stripe Connect sandbox platform, with its platform account ID recorded as `STRIPE_PLATFORM_ACCOUNT_ID` in each subsystem's environment. CP creates/captures the platform charge; PP releases, reverses and refunds that same platform's objects. Use separate least-privilege service credentials for this platform, not unrelated CP/PP Stripe accounts. Provider connected-account IDs are destinations belonging to this platform. PP-05 defines reversal outcomes and webhook ownership.
 - **Rationale:** PayPal Payouts supports a true provider-to-customer payment that is separate from the original (needed for Medium). Stripe Connect natively supports all five escrow operations (authorize, capture, release/transfer, payout, refund) required by PP-MONEY-U01 and CP-MONEY-U04.
 - Each provider stores its `paymentAccountId` (PayPal merchant ID / Stripe `acct_…`). PP returns it in the quote, so CP never needs provider account data.
@@ -135,7 +137,7 @@ A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides h
 - **Ambiguous failure:** Timeout/503, lost acknowledgement or a duplicate binding is not proof of rejection. Preserve the write key and reconcile through the durable replay result and PP-OP-08's customer/order lookup. Never refund solely because a response was lost or an in-flight lookup was empty. Unique bindings remain after Redis expiry and workflow archiving.
 
 ### D-15 Time zones
-- Stay dates and "today" checks use the **branch's** IANA time zone (e.g. `Asia/Ho_Chi_Minh`, `Asia/Bangkok`).
+- Stay dates and "today" checks use the **branch's** IANA time zone (`Asia/Ho_Chi_Minh` for VN, `Asia/Singapore` for SG).
 - Event timing uses the **event's** time zone. Timestamps on the wire are always UTC.
 
 ### D-16 Data minimisation (PP-SEARCH-S02, BE-M05)
@@ -154,7 +156,7 @@ Recorded so that reviewers see these were noticed and handled:
 | PP-PMS-S02 | Listed under Ultimo with an "S" ID, and says "while the premium membership is active" although Section 2.9 is about the provider's PMS subscription | Treated as an Ultimo requirement gated on the provider's **PMS subscription** (not customer Premium) |
 | PP-ROOM-U02 | Same text as PP-SEARCH-U02 | Covered by PP-OP-01…04 Kafka binding |
 | PP-SEARCH-U01 | Mentions "rating information" | Interpreted as "search information" |
-| CP exchange table | Mentions a redundant rating service at Ultimo | **Confirmed by CP:** CP runs a standby redundant rating instance in consumer group `cp-rating-service` (`04-kafka.md` §5), so PP's resend policy works seamlessly. |
+| CP exchange table | Mentions a redundant rating service at Ultimo | **Confirmed by CP:** CP runs a second instance of its modular monolith whose rating consumer joins group `cp-rating-service` (`04-kafka.md` §5), so PP's resend policy works seamlessly. |
 | CP-RATING-S01 | Says "create a review for a room", while CP Section 2.6 and PP Section 2.7 say reviews target the provider | Reviews target the **provider**; PP-OP-10 returns `providerId` as the review target |
 | CP-SEARCH-S02 | Refers to "CP-SEARCH-01" | Read as CP-SEARCH-S01 |
 | PP Section 2.4.3 | States there are no Ultimo room requirements, but PP-ROOM-U02 appears in Section 2.6.3 | PP-ROOM-U02 is honoured through the Kafka binding of PP-OP-01 to PP-OP-04 |

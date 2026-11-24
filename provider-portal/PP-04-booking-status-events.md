@@ -87,7 +87,7 @@ At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recover
   "sequence": 2,
   "booking": {
     "bookingId": "8c9d0e1f-0000-4000-8000-000000000802",
-    "bookingCode": "RS-TH-9KD2M",
+    "bookingCode": "RS-SG-9KD2M",
     "status": "CANCELLED",
     "cancellation": { "cancelledBy": "RECEPTIONIST", "reason": "Room under maintenance", "cancelledAt": "2026-12-02T02:00:00Z" },
     "payment": { "mode": "DIRECT", "originalPaymentReference": "PAYPAL-CAPTURE-7XK12345AB", "returnPaymentStatus": "PENDING", "returnPaymentReference": "PAYOUT-BATCH-5UXD2EXAMPLE" }

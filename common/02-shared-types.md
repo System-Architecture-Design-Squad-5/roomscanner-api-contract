@@ -52,7 +52,7 @@ Every operation references these types. Field types use JSON Schema names (`stri
 |---|---|---|
 | `SIMULATED` | Simplex | CP issues a simulated order. PP completes or cancels it (PP-MONEY-S01). |
 | `DIRECT` | Medium | Direct customer-to-provider sandbox payment. The return is a separate provider payout (PP-MONEY-M01, M02). |
-| `ESCROW` | Ultimo | Authorize → capture (held) → release on approval / refund on cancellation (PP-MONEY-U01) |
+| `ESCROW` | Ultimo (optional; M1 bonus) | Authorize → capture (held) → release on approval / refund on cancellation (PP-MONEY-U01). Replaces `DIRECT` only for the bookings that use it; `DIRECT` stays valid otherwise (D-07). |
 
 ### PaymentGateway
 `NONE` (simulated), `PAYPAL_SANDBOX`, `STRIPE_SANDBOX`. See Decision D-07.

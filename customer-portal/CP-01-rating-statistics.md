@@ -1,7 +1,7 @@
 # CP-01: Rating Statistics (provided by CP)
 
 **Owner:** Customer Portal · **Consumer:** Provider Portal · **Scope:** `rating:read`
-**SRS:** PP-RATING-S01, M01, U01, U02 · CP-RATING-M03, U01, U02 · CP-EXCH-U01 · **Decisions:** D-11, D-17
+**SRS:** PP-RATING-S01, M01, U01, U02 · CP-RATING-M03, U01, U02 · CP SRS §3 "Reviews and rating statistics" · **Decisions:** D-11, D-17
 
 Customer Portal is the authoritative owner of customer reviews and rating statistics (provider-level, per `CP-RATING` §2.6). Within CP's **Modular Monolith**, `PartnerIntegrationModule` delegates to `RatingModule` via `IRatingExternalService` (`RatingStatisticsExternalDto`).
 
@@ -34,6 +34,7 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
 {
   "messageId": "0c4a7d22-0000-4000-8000-00000000c001",
   "correlationId": "0c4a7d22-0000-4000-8000-00000000c0aa",
+  "traceId": "7ace0000-0000-4000-8000-000000000001",
   "type": "GET_RATING_STATISTICS",
   "schemaVersion": "1.0",
   "source": "PP",
@@ -101,14 +102,15 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
 ```
 *(`FRIENDLINESS` and `ROOM` entries have the same shape and use the authoritative 18-option `PresetFeedbackOptionCatalogue` in `common/02-shared-types.md`: `FRD-45-A/B`, `FRD-3-A/B`, `FRD-12-A/B` and `RM-45-A/B`, `RM-3-A/B`, `RM-12-A/B`.)*
 
-### Shard Routing & Redundancy (`BE-M07`, `CP-RATING-U02`, `CP-EXCH-U01`)
+### Shard Routing & Redundancy (`BE-M07`, `CP-RATING-U02`, CP SRS §3)
 - **Targeted Sharding:** CP shards reviews by **`providerId`** (hash). A request for one provider touches exactly one shard; deleted reviews reside in a separate archive shard/table (`CP-RATING-S04`).
-- **Redundant Rating Service:** At Ultimo, CP operates a standby redundant rating instance in consumer group `cp-rating-service` on `rs.rating-stats.request.v1` so requests continue to be served if the primary instance fails.
+- **Redundant Rating Service:** At Ultimo integration, CP runs a second instance of the CP modular monolith (same single deployable, all modules); both instances' rating consumers join group `cp-rating-service` on `rs.rating-stats.request.v1`, so requests continue to be served if one instance fails (`common/04-kafka.md` §5). There is no separate rating microservice.
 
 ### Errors
 - `404 RESOURCE_NOT_FOUND` is **not** used for providers with no reviews (`200` with `totalReviews: 0`).
 - `400 VALIDATION_ERROR`: invalid `include` enum or `commentsLimit` outside `1–50`.
 - `503 SERVICE_UNAVAILABLE`: target review shard unavailable → PP retries (`04-kafka.md` §4), then shows its cached value marked stale.
+- `401 PARTNER_UNAUTHENTICATED` / `403 PARTNER_FORBIDDEN` / `429 RATE_LIMITED`: standard partner errors, see `common/01-conventions.md` (read limit: 120 requests per 60 s).
 
 ```json
 {

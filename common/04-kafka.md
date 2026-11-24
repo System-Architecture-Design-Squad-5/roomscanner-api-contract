@@ -111,7 +111,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 | `rs.rating-stats.response.v1` | CP → PP | CP | `providerId` | `GET_RATING_STATISTICS_RESULT` | CP-OP-01 |
 | `rs.membership.request.v1` | PP → CP | CP | `customerId` | `GET_MEMBERSHIP` | CP-OP-02 |
 | `rs.membership.response.v1` | CP → PP | CP | `customerId` | `GET_MEMBERSHIP_RESULT` | CP-OP-02 |
-| `rs.event.favorite.v1` | CP → PP | **CP** | `eventId` | `FAVORITE_ADDED`, `FAVORITE_REMOVED`, `EVENT_DATES_CHANGED` | CP-OP-05 |
+| `rs.event.favorite.v1` | CP → PP | **CP** | `eventId` | `FAVORITE_ADDED`, `FAVORITE_REMOVED`, `EVENT_DATES_CHANGED`, `EVENT_DELETED` | CP-OP-05 |
 | `rs.event.notification.v1` | PP → CP | **CP** (CP-EVENT-U01, "Customer Portal creates the topics") | `customerId` | `REGIONAL_EVENT_NOTIFICATION` | PP-OP-13 |
 | `<topic>.dlq` | consumer → ops | topic creator | original key | original message + `errorReason` | all |
 
@@ -132,7 +132,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 | Message type | Timeout per attempt | Max attempts | Backoff between attempts | Overall budget |
 |---|---|---|---|---|
 | Search (`SEARCH_PROVIDERS`, `GET_BRANCH`, `GET_ROOM`, `LIST_ROOMS`) | 3 s | 3 | 0.5 s, 1 s | 12 s |
-| Quote, `CREATE_BOOKING`, `CANCEL_BOOKING` | 10 s | 3 | 2 s, 4 s | 45 s |
+| `CREATE_QUOTE`, `CREATE_BOOKING`, `CANCEL_BOOKING` | 10 s | 3 | 2 s, 4 s | 45 s |
 | `GET_BOOKING`, `LIST_BOOKINGS`, `GET_ELIGIBILITY` | 3 s | 3 | 0.5 s, 1 s | 12 s |
 | `GET_RATING_STATISTICS` (PP-RATING-U02) | 5 s | 3 | 1 s, 2 s | 20 s |
 | `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s | 12 s |
@@ -146,9 +146,9 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 
 - **Delivery:** at-least-once. Producers use `acks=all` and `enable.idempotence=true`. Consumers commit offsets **after** processing. Responders are idempotent (§4).
 - **PP booking redundancy (PP-BOOK-U01):** Both PP booking-service instances (Machine 1 and Machine 2) join the consumer group `pp-booking-service`. If the primary fails, Kafka rebalances its partitions to the redundant instance, which continues from the last committed offset. CP needs no change. REST traffic from the PP frontend fails over through the API Gateway + service discovery (+ circuit breaker) in the same way.
-- **CP rating redundancy (CustomerPortalSRS §3):** CP runs a standby redundant rating instance in consumer group `cp-rating-service` consuming `rs.rating-stats.request.v1`. If the primary CP rating instance fails, Kafka rebalances partitions to the standby instance so on-demand rating statistics continue to be served.
+- **CP rating redundancy (CustomerPortalSRS §3):** CP runs a second instance of the CP modular monolith (same single deployable, all modules). In both instances `PartnerIntegrationModule`'s consumer joins group `cp-rating-service` on `rs.rating-stats.request.v1`. If one instance fails, Kafka rebalances its partitions to the other, so on-demand rating statistics continue to be served. CP stays a modular monolith; this is horizontal scaling of the one deployable, not a separate rating microservice.
 - **Ordering:** guaranteed per key. All events for one `bookingId` arrive in order.
-- **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP may consume and produce from a single modular-monolith process or from separate microservices; either way it uses the same groups (for example `cp-search-reply`). A partition is assigned to one member of a group at a time; at-least-once redelivery remains possible and requires deduplication. Neither side needs to know how the other is deployed.
+- **Partner architecture independence (PP-SEARCH-U02, PP-ROOM-U02, PP-RATING-U01, CP-RATING-U01):** The contract depends only on topic names, the envelope and the consumer-group names in Section 6. CP is a **modular monolith** (Medium backend): every CP producer and consumer group (for example `cp-search-reply`) runs inside the monolith process, in `PartnerIntegrationModule`. The contract would not change if a partner were deployed as microservices instead, as the SRS requires. A partition is assigned to one member of a group at a time; at-least-once redelivery remains possible and requires deduplication. Neither side needs to know how the other is deployed.
 
 ## 6. Security and ACLs
 

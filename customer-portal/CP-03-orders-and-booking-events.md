@@ -37,7 +37,7 @@ Within CP's **Modular Monolith**, `PartnerIntegrationModule` delegates these par
 }
 ```
 
-**Errors:** `404 RESOURCE_NOT_FOUND` (unknown order) · `409 STATE_CONFLICT` (already completed or cancelled with a different action).
+**Errors:** `400 VALIDATION_ERROR` (bad `action` or `bookingId`) · `404 RESOURCE_NOT_FOUND` (unknown order) · `409 STATE_CONFLICT` (already completed or cancelled with a different action) · `503 SERVICE_UNAVAILABLE` (PP retries with the same `Idempotency-Key`) · `401` / `403` / `429` standard partner errors (`common/01-conventions.md`; write limit 30 requests per 60 s).
 
 ---
 
@@ -50,6 +50,7 @@ Within CP's **Modular Monolith**, `PartnerIntegrationModule` delegates these par
 - Body: the `BookingStatusEvent` payload from `PP-OP-11`.
 - Response `200` within 5 s. Heavy work (emails, real-time WebSocket push) executes asynchronously after acknowledging.
 - `401 PARTNER_UNAUTHENTICATED` if the HMAC-SHA256 `X-RS-Signature` or replay window (`|now - t| > 300 s`) is invalid. Any `5xx` or timeout → PP retries (`PP-04` delivery table).
+- `400 VALIDATION_ERROR` if the body does not match `BookingStatusEvent` (PP does not retry 4xx except `429`). `429 RATE_LIMITED` (60 requests per 60 s) and `503 SERVICE_UNAVAILABLE` are retried by PP per the `PP-04` delivery table.
 
 **Request (abridged `booking`; full `BookingSummary` and `emailData` match `PP-04`)**
 
