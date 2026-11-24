@@ -6,10 +6,18 @@
 
 PP performs **authoritative** retrieval. CP only renders the results. All four operations are read-only and safe to retry.
 
-> **CP Modular Monolith Integration (`SearchModule` & `RatingModule`):**
-> - CP's `SearchModule` maps `PP-OP-01` (`/api/v1/customer/search/providers`), `PP-OP-02` (`/api/v1/customer/branches/{branchId}`), `PP-OP-03` (`/api/v1/customer/branches/{branchId}/rooms`), and `PP-OP-04` (`/api/v1/customer/rooms/{roomId}`). When a customer is logged in with an active Premium JWE, `SearchModule` passes `membershipTier=PREMIUM` on `PP-OP-03` and `PP-OP-04` so PP populates display-only `premiumPricePerNight`.
-> - **Default City & Sub-Region Cities:** Because `PP-OP-01` requires `city` and returns `400 CITY_OUTSIDE_SUBREGION` for cities outside the squad's two assigned countries (`VN` and `SG`), CP's frontend search bar provides a curated city selector for the squad's sub-region and defaults initial homepage browsing to the primary sub-region city (e.g. `city=Ho Chi Minh City`).
-> - While `PP-OP-02` returns up to 3 `latestComments` for the branch overview, full provider review pages (`GET /api/v1/customer/providers/{providerId}/reviews`) are served **directly in-process** inside CP's Modular Monolith by `SearchModule` calling `RatingModule` via `IRatingExternalService` (`ProviderPublicReviewsDto`) using `branch.providerId`.
+**How CP uses these operations**
+
+| CP route (`/api/v1/customer`) | PP operation |
+|---|---|
+| `/search/providers` | PP-OP-01 |
+| `/branches/{branchId}` | PP-OP-02 |
+| `/branches/{branchId}/rooms` | PP-OP-03 |
+| `/rooms/{roomId}` | PP-OP-04 |
+
+- CP offers a city selector for `VN` and `SG` and supplies a default city on the homepage, for example Ho Chi Minh City. PP-OP-01 requires a city and rejects cities outside the squad's region.
+- When the customer's JWE indicates active Premium, CP's `SearchModule` sends `membershipTier=PREMIUM` on PP-OP-03 and PP-OP-04. The returned `premiumPricePerNight` is for display; [the quote](PP-02-pricing-and-discounts.md) determines the amount CP charges.
+- PP-OP-02 returns up to three `latestComments`. For the full review page (`GET /api/v1/customer/providers/{providerId}/reviews`), CP's `SearchModule` passes `branch.providerId` to `RatingModule` in-process via `IRatingExternalService` (`ProviderPublicReviewsDto`).
 
 ---
 
@@ -163,7 +171,7 @@ Returns the branches (properties) in a city that match the keyword and filters, 
   }
 }
 ```
-The response has `type=SEARCH_PROVIDERS_RESULT`, the same `correlationId` and `traceId`, `causationId` = the `messageId` of the request it answers, `status` = `OK` or `ERROR`, and a `payload` identical to the REST `200` body (or to the standard error body when `status=ERROR`). Search requests are resent per INT-U03: 3 s per attempt, 3 attempts, 12 s overall budget (`common/04-kafka.md`).
+The reply uses `type=SEARCH_PROVIDERS_RESULT` and the [standard Kafka envelope](../common/04-kafka.md#1-message-envelope). Search retries follow the [shared budget](../common/04-kafka.md#4-resend-policy-int-u03).
 
 **Kafka response example (`status=OK`)**
 
@@ -515,4 +523,3 @@ Fields and types: `RoomDetail` in `common/02-shared-types.md`.
   }
 }
 ```
-
