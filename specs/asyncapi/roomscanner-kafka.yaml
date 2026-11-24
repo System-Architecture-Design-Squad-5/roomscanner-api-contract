@@ -1184,9 +1184,9 @@ components:
           source: CP
           replyTo: rs.booking.response.v1
           attempt: 1
-          deadline: '2026-12-01T03:00:45Z'
+          deadline: '2026-12-01T03:02:56Z'
           idempotencyKey: a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8
-          timestamp: '2026-12-01T03:00:00Z'
+          timestamp: '2026-12-01T03:02:11Z'
           payload:
             quoteId: 1a2b3c4d-0000-4000-8000-000000000501
             customer:
@@ -1750,7 +1750,7 @@ components:
           type: CREATE_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
-          timestamp: '2026-12-01T03:00:01Z'
+          timestamp: '2026-12-01T03:02:12Z'
           status: OK
           causationId: e1a2b3c4-0000-4000-8000-000000000003
           payload:
@@ -1809,7 +1809,7 @@ components:
           type: CREATE_BOOKING_RESULT
           schemaVersion: '1.0'
           source: PP
-          timestamp: '2026-12-01T03:00:01Z'
+          timestamp: '2026-12-01T03:02:12Z'
           status: ERROR
           causationId: e1a2b3c4-0000-4000-8000-000000000003
           payload:
@@ -1818,8 +1818,8 @@ components:
               httpStatus: 409
               message: The price quote has expired. Request a new quote.
               refundRequiredByPayer: true
-              requestId: e1a2b3c4-0000-4000-8000-00000000a001
-              timestamp: '2026-12-01T03:00:01Z'
+              requestId: e1a2b3c4-0000-4000-8000-000000000003
+              timestamp: '2026-12-01T03:02:12Z'
       - name: createQuoteResult
         payload:
           messageId: 6b0e2a71-0000-4000-8000-00000000b10b
@@ -2840,6 +2840,98 @@ components:
                 selectedCount: 0
                 denominator: 0
                 percentage: 0.0
+            - subcategory: FRIENDLINESS
+              average: 4.2
+              count: 5
+              distribution:
+                '1': 0
+                '2': 0
+                '3': 1
+                '4': 2
+                '5': 2
+              presetOptions:
+              - optionId: FRD-45-A
+                starGroup: FOUR_TO_FIVE
+                label: Staff were warm and welcoming
+                selectedCount: 3
+                denominator: 4
+                percentage: 75.0
+              - optionId: FRD-45-B
+                starGroup: FOUR_TO_FIVE
+                label: Hosts went above and beyond to help
+                selectedCount: 2
+                denominator: 4
+                percentage: 50.0
+              - optionId: FRD-3-A
+                starGroup: THREE
+                label: Staff were polite but distant
+                selectedCount: 0
+                denominator: 1
+                percentage: 0.0
+              - optionId: FRD-3-B
+                starGroup: THREE
+                label: Check-in greeting was average
+                selectedCount: 1
+                denominator: 1
+                percentage: 100.0
+              - optionId: FRD-12-A
+                starGroup: ONE_TO_TWO
+                label: Staff attitude was rude or unhelpful
+                selectedCount: 0
+                denominator: 0
+                percentage: 0.0
+              - optionId: FRD-12-B
+                starGroup: ONE_TO_TWO
+                label: Communication with reception was difficult
+                selectedCount: 0
+                denominator: 0
+                percentage: 0.0
+            - subcategory: ROOM
+              average: 4.2
+              count: 5
+              distribution:
+                '1': 0
+                '2': 0
+                '3': 1
+                '4': 2
+                '5': 2
+              presetOptions:
+              - optionId: RM-45-A
+                starGroup: FOUR_TO_FIVE
+                label: Room was spotless and comfortable
+                selectedCount: 3
+                denominator: 4
+                percentage: 75.0
+              - optionId: RM-45-B
+                starGroup: FOUR_TO_FIVE
+                label: Amenities and bed quality matched the photos
+                selectedCount: 2
+                denominator: 4
+                percentage: 50.0
+              - optionId: RM-3-A
+                starGroup: THREE
+                label: Room was clean but slightly dated
+                selectedCount: 0
+                denominator: 1
+                percentage: 0.0
+              - optionId: RM-3-B
+                starGroup: THREE
+                label: Noise isolation could be improved
+                selectedCount: 1
+                denominator: 1
+                percentage: 100.0
+              - optionId: RM-12-A
+                starGroup: ONE_TO_TWO
+                label: Room cleanliness was below expectations
+                selectedCount: 0
+                denominator: 0
+                percentage: 0.0
+              - optionId: RM-12-B
+                starGroup: ONE_TO_TWO
+                label: Listed amenities were broken or missing
+                selectedCount: 0
+                denominator: 0
+                percentage: 0.0
             comments:
               items:
               - reviewId: a1b2c3d4-0000-4000-8000-000000000601
@@ -3528,6 +3620,7 @@ components:
           type: string
           description: Timestamp of the CP statistics this value came from
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - totalReviews
       - source
@@ -3539,12 +3632,14 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Company name of the accommodation provider
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchName:
           type: string
           description: Property name shown to customers
@@ -3573,7 +3668,10 @@ components:
         lowestPricePerNight:
           $ref: '#/components/schemas/Money'
         ratingSummary:
-          $ref: '#/components/schemas/RatingSummary'
+          allOf:
+          - $ref: '#/components/schemas/RatingSummary'
+          description: Omitted when CP is unavailable and no cached statistics exist. Absence means unavailable, not zero
+            reviews.
         matchedFields:
           type: array
           items:
@@ -3596,7 +3694,6 @@ components:
       - amenities
       - availableRoomCount
       - lowestPricePerNight
-      - ratingSummary
     PageInfo:
       type: object
       description: Cursor pagination metadata (lazy loading, PP-SEARCH-M02).
@@ -3620,6 +3717,7 @@ components:
         discountPackageId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         type:
@@ -3629,9 +3727,10 @@ components:
           description: Percentage (1-100) or minor units per night
           minimum: 1
         eligibleTier:
-          allOf:
-          - $ref: '#/components/schemas/MembershipTier'
-          description: Always PREMIUM
+          type: string
+          enum:
+          - PREMIUM
+          description: Only Premium customers receive this discount.
         active:
           type: boolean
           description: false once the discount program is cancelled
@@ -3642,6 +3741,17 @@ components:
       - value
       - eligibleTier
       - active
+      oneOf:
+      - properties:
+          type:
+            enum:
+            - PERCENTAGE
+          value:
+            maximum: 100
+      - properties:
+          type:
+            enum:
+            - FIXED_PER_NIGHT
     RoomSummary:
       type: object
       description: Room listing summary (PP-SEARCH-S03).
@@ -3649,9 +3759,11 @@ components:
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         roomType:
@@ -3738,6 +3850,7 @@ components:
         discountPackageId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         type:
@@ -3755,6 +3868,17 @@ components:
       - type
       - value
       - amount
+      oneOf:
+      - properties:
+          type:
+            enum:
+            - PERCENTAGE
+          value:
+            maximum: 100
+      - properties:
+          type:
+            enum:
+            - FIXED_PER_NIGHT
     PriceBreakdown:
       type: object
       description: Price calculated by PP (Decision D-06).
@@ -3791,13 +3915,15 @@ components:
           type: string
           description: CP application user ID
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         email:
           type: string
           format: email
         phone:
           type: string
-          description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03, CP-REG-M03)'
-          pattern: ^\+[1-9][0-9]{1,15}$
+          description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than 13 digits
+            after that code (PP-REG-M03, CP-REG-M03).
+          pattern: ^\+[1-9][0-9]{1,14}$
         countryOfResidence:
           type: string
           description: ISO 3166-1 alpha-2 country code
@@ -3819,9 +3945,32 @@ components:
           type: string
           description: Present when tier is PREMIUM
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - tier
       - status
+      oneOf:
+      - properties:
+          tier:
+            enum:
+            - STANDARD
+          status:
+            enum:
+            - NONE
+        not:
+          anyOf:
+          - required:
+            - validUntil
+      - properties:
+          tier:
+            enum:
+            - PREMIUM
+          status:
+            enum:
+            - ACTIVE
+            - EXPIRED
+        required:
+        - validUntil
     PaymentInfo:
       type: object
       description: Payer-side payment information sent by CP with CreateBooking.
@@ -3834,6 +3983,7 @@ components:
           type: string
           description: CP order ID (payer side)
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         paymentReference:
           type: string
           description: 'Required for DIRECT and ESCROW: PayPal capture ID or Stripe PaymentIntent ID'
@@ -3852,6 +4002,7 @@ components:
           type: string
           description: Required for DIRECT and ESCROW
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - mode
       - gateway
@@ -3926,6 +4077,7 @@ components:
           type: string
           description: Original CP order ID; retained for reconciliation
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         originalPaymentReference:
           type: string
           description: Preserved after cancellation (PP-MONEY-M03)
@@ -3964,18 +4116,79 @@ components:
             mode:
               enum:
               - SIMULATED
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+          not:
+            anyOf:
+            - required:
+              - originalPaymentReference
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
+            - required:
+              - returnPaymentReference
         - properties:
             mode:
               enum:
               - DIRECT
           required:
           - originalPaymentReference
+          not:
+            anyOf:
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
         - properties:
             mode:
               enum:
               - ESCROW
           required:
           - originalPaymentReference
+          - escrowStatus
+      - oneOf:
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - returnPaymentReference
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+              - PENDING
+              - FAILED
+      - oneOf:
+        - not:
+            anyOf:
+            - required:
+              - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - RELEASED
+          required:
+          - escrowStatus
+          - releaseReference
+        - properties:
+            escrowStatus:
+              enum:
+              - REFUNDED
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - HELD
+              - RELEASE_PENDING
+              - RELEASE_FAILED
+          required:
           - escrowStatus
       - oneOf:
         - not:
@@ -4037,6 +4250,7 @@ components:
         cancelledAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - cancelledBy
       - cancelledAt
@@ -4048,6 +4262,7 @@ components:
           type: string
           description: PP booking reference
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         bookingCode:
           type: string
           description: Short human-readable code
@@ -4057,15 +4272,19 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
         branchName:
@@ -4098,9 +4317,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - bookingId
       - bookingCode
@@ -4121,6 +4342,23 @@ components:
       - payment
       - createdAt
       - updatedAt
+      oneOf:
+      - properties:
+          status:
+            enum:
+            - CANCELLED
+        required:
+        - cancellation
+      - properties:
+          status:
+            enum:
+            - PENDING_APPROVAL
+            - CONFIRMED
+            - COMPLETED
+        not:
+          anyOf:
+          - required:
+            - cancellation
     Booking:
       allOf:
       - $ref: '#/components/schemas/BookingSummary'
@@ -4138,9 +4376,9 @@ components:
                 type: string
               branchPhone:
                 type: string
-                description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03,
-                  CP-REG-M03)'
-                pattern: ^\+[1-9][0-9]{1,15}$
+                description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than
+                  13 digits after that code (PP-REG-M03, CP-REG-M03).
+                pattern: ^\+[1-9][0-9]{1,14}$
             required:
             - branchName
             - branchPhone
@@ -4188,6 +4426,7 @@ components:
             timestamp:
               type: string
               format: date-time
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
           required:
           - code
           - message
@@ -4202,6 +4441,7 @@ components:
         reviewId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         overallScore:
           type: integer
           minimum: 1
@@ -4211,9 +4451,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - reviewId
       - overallScore
@@ -4300,11 +4542,13 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         membership:
           $ref: '#/components/schemas/MembershipSnapshot'
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           description: On or after today in the branch time zone
@@ -4357,15 +4601,19 @@ components:
         quoteId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -4394,9 +4642,11 @@ components:
           type: string
           description: createdAt + 15 minutes
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - quoteId
       - roomId
@@ -4418,6 +4668,7 @@ components:
           type: string
           description: From CreatePriceQuote
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customer:
           $ref: '#/components/schemas/CustomerSnapshot'
         membership:
@@ -4425,6 +4676,7 @@ components:
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -4463,19 +4715,23 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           description: Review target. Reviews are per provider, not per room.
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Accommodation provider company name
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchName:
           type: string
           description: Booked branch property name
@@ -4503,11 +4759,36 @@ components:
         evaluatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - bookingId
       - customerId
       - eligible
       - evaluatedAt
+      oneOf:
+      - properties:
+          eligible:
+            enum:
+            - true
+        required:
+        - providerId
+        - providerName
+        - branchId
+        - branchName
+        - stayStartDate
+        - stayEndDate
+        - reviewableFrom
+        - bookingStatus
+        not:
+          anyOf:
+          - required:
+            - reason
+      - properties:
+          eligible:
+            enum:
+            - false
+        required:
+        - reason
     EventInfo:
       type: object
       description: Regional event data supplied by CP (CP owns events).
@@ -4516,6 +4797,7 @@ components:
           type: string
           description: CP event ID
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         summary:
@@ -4563,12 +4845,14 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Accommodation provider's (company) name
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
           description: Accommodation (branch) name
@@ -4613,8 +4897,9 @@ components:
           type: string
         branchPhone:
           type: string
-          description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03, CP-REG-M03)'
-          pattern: ^\+[1-9][0-9]{1,15}$
+          description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than 13 digits
+            after that code (PP-REG-M03, CP-REG-M03).
+          pattern: ^\+[1-9][0-9]{1,14}$
         roomName:
           type: string
         checkInDate:
@@ -4660,6 +4945,7 @@ components:
           type: string
           description: CP de-duplicates on this
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         eventType:
           type: string
           enum:
@@ -4672,6 +4958,7 @@ components:
         occurredAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         sequence:
           type: integer
           description: Increases per bookingId; CP ignores lower sequences
@@ -4691,6 +4978,46 @@ components:
       - occurredAt
       - sequence
       - booking
+      oneOf:
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_CONFIRMED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - CONFIRMED
+        required:
+        - emailData
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_CANCELLED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - CANCELLED
+        required:
+        - emailData
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_COMPLETED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - COMPLETED
+      - properties:
+          eventType:
+            enum:
+            - RETURN_PAYMENT_UPDATED
+            - ESCROW_RELEASE_UPDATED
     StarDistribution:
       type: object
       description: Count of reviews per star value.
@@ -4803,9 +5130,11 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         asOf:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         totalReviews:
           type: integer
           description: Active (non-archived) reviews
@@ -4830,6 +5159,7 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         tier:
           $ref: '#/components/schemas/MembershipTier'
         status:
@@ -4837,13 +5167,40 @@ components:
         validFrom:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         validUntil:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - customerId
       - tier
       - status
+      oneOf:
+      - properties:
+          tier:
+            enum:
+            - STANDARD
+          status:
+            enum:
+            - NONE
+        not:
+          anyOf:
+          - required:
+            - validFrom
+          - required:
+            - validUntil
+      - properties:
+          tier:
+            enum:
+            - PREMIUM
+          status:
+            enum:
+            - ACTIVE
+            - EXPIRED
+        required:
+        - validFrom
+        - validUntil
     SearchProvidersRequest:
       type: object
       description: Kafka payload equivalent of the PP-OP-01 query parameters.
@@ -4891,12 +5248,18 @@ components:
           type: string
       required:
       - city
+      dependencies:
+        checkInDate:
+        - checkOutDate
+        checkOutDate:
+        - checkInDate
     GetBranchRequest:
       type: object
       properties:
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -4905,12 +5268,18 @@ components:
           format: date
       required:
       - branchId
+      dependencies:
+        checkInDate:
+        - checkOutDate
+        checkOutDate:
+        - checkInDate
     ListRoomsRequest:
       type: object
       properties:
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -4938,12 +5307,18 @@ components:
           type: string
       required:
       - branchId
+      dependencies:
+        checkInDate:
+        - checkOutDate
+        checkOutDate:
+        - checkInDate
     GetRoomRequest:
       type: object
       properties:
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -4954,15 +5329,22 @@ components:
           $ref: '#/components/schemas/MembershipTier'
       required:
       - roomId
+      dependencies:
+        checkInDate:
+        - checkOutDate
+        checkOutDate:
+        - checkInDate
     GetBookingRequest:
       type: object
       properties:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       required:
       - bookingId
       - customerId
@@ -4972,10 +5354,12 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         orderId:
           type: string
           description: Optional exact CP-order lookup for timeout reconciliation
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         status:
           type: array
           items:
@@ -5006,9 +5390,11 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         reason:
           type: string
           maxLength: 500
@@ -5021,9 +5407,11 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       required:
       - bookingId
       - customerId
@@ -5033,6 +5421,7 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         include:
           type: array
           items:
@@ -5051,6 +5440,7 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       required:
       - customerId
     EventFavoriteChanged:
@@ -5069,14 +5459,17 @@ components:
           type: string
           description: Required for FAVORITE_*
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           description: Required for FAVORITE_*
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         favoritedAt:
           type: string
           description: Required for FAVORITE_ADDED
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         event:
           $ref: '#/components/schemas/EventInfo'
       required:
@@ -5130,12 +5523,15 @@ components:
           type: string
           description: CP de-duplicates on this
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         favoriteId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         trigger:
           type: string
           enum:
@@ -5159,6 +5555,7 @@ components:
         publishedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - notificationId
       - favoriteId
@@ -5177,23 +5574,28 @@ components:
           type: string
           description: Unique per message; a resend gets a new messageId
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         correlationId:
           type: string
           description: Set by the requester; copied into the response; unchanged on resend
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         traceId:
           type: string
           description: Business-flow trace shared by related logical requests and events; never a pending-request or deduplication
             key
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         idempotencyKey:
           type: string
           description: Required for CREATE_QUOTE, CREATE_BOOKING and CANCEL_BOOKING; unchanged across retries
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         causationId:
           type: string
           description: messageId of the message that caused this one
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         type:
           type: string
           description: Operation type, e.g. CREATE_BOOKING or CREATE_BOOKING_RESULT
@@ -5216,9 +5618,11 @@ components:
           type: string
           description: 'Requests only: responder may skip requests past this time'
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         timestamp:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         status:
           type: string
           enum:

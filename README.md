@@ -4,7 +4,7 @@
 |---|---|
 | Contract version | 1.0.0 |
 | Contract deadline | Friday 20 November 2026, 18:00 ICT |
-| Status | Agreed (CP Reviewed) |
+| Status | CP-reviewed baseline; 24 Nov audit corrections pending joint review |
 | Squad | `5` |
 | Sub-region and countries | Southeast Asia; Vietnam (`VN`) and Singapore (`SG`). "Country" is where the accommodation is located (lecturer answer, 23 Nov 2026). |
 | Provider Portal team | `Team 9` |
@@ -94,9 +94,13 @@ python tools/generate_specs.py .
 python tools/validate_specs.py
 ```
 
-The checks cover both OpenAPI documents, all embedded machine-readable examples, malformed Kafka/payment/event payloads, request/response correlation, retry budgets, custom bearer authentication, CP-order reconciliation and generator/spec consistency. This validates the contract; runtime duplicate protection, transactions, gateway access and failover still require implementation tests in the portal repositories.
+The checks cover both OpenAPI documents, all embedded machine-readable examples, complete Markdown Kafka examples, JSON syntax, example price arithmetic, malformed Kafka/payment/event payloads, request/response correlation, retry budgets, custom bearer authentication, CP-order reconciliation and generator/spec consistency. Use Python 3.9 or newer. AsyncAPI document structure is a separate check (`asyncapi validate specs/asyncapi/roomscanner-kafka.yaml`); the Python suite validates its payloads and examples. This validates the contract; runtime duplicate protection, transactions, gateway access and failover still require implementation tests in the portal repositories.
 
 The corrections recorded under **Unreleased** in `CHANGELOG.md` revise the unsigned v1.0.0 draft. Required trace/idempotency fields and stricter validation must be reviewed by both teams before the baseline is signed/tagged; these edits do not constitute team sign-off or a deployed API migration.
+
+The 24 November review used `ProviderPortalSRS_v1.0.pdf`, `CustomerPortalSRS_v1.0.pdf`, `CommonRequirements_v1.0.pdf`, and the supplied `Lecturer_Answers_Project_Discussion.md` (23 November answers, last read 24 November). CP's Ultimo frontend + Medium modular monolith backend and PP's Ultimo frontend + microservices backend are compatible with independent architecture levels and Ultimo Kafka integration. This repository specifies partner APIs; it does not verify either frontend implementation or either backend's runtime behavior.
+
+Remaining agreement points are the separate cross-squad PMS contract (typed messages, payments, shared review retrieval, storage and ownership), escrow selection given the conflicting SRS wording, and the two-month example's extra day. The existing lecturer-confirmation markers for amenities/search semantics, payment-return wording and SRS errata also remain in D-02, D-03, D-13 and D-17; the audit does not turn those interpretations into lecturer approval. The PMS draft now proposes direct CP and PP connections, as the lecturer's all-four-teams clarification requires. Existing D-01 to D-17 agreement labels record the earlier baseline review; they do not sign off these audit corrections.
 
 ## 3. Operation index
 

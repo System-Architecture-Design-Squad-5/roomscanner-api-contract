@@ -76,16 +76,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -216,16 +219,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -302,16 +308,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -367,6 +376,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - $ref: '#/components/parameters/CheckInDate'
       - $ref: '#/components/parameters/CheckOutDate'
       responses:
@@ -378,16 +388,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -485,6 +498,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - $ref: '#/components/parameters/CheckInDate'
       - $ref: '#/components/parameters/CheckOutDate'
       - name: rooms
@@ -524,16 +538,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -617,6 +634,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - $ref: '#/components/parameters/CheckInDate'
       - $ref: '#/components/parameters/CheckOutDate'
       - $ref: '#/components/parameters/MembershipTierQuery'
@@ -629,16 +647,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -783,16 +804,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -866,16 +890,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -904,16 +931,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -944,16 +974,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             Retry-After:
               description: Seconds before retrying
               schema:
@@ -1039,16 +1072,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1131,16 +1167,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -1218,16 +1257,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -1277,7 +1319,50 @@ paths:
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
         '503':
-          $ref: '#/components/responses/ServiceUnavailable'
+          description: Booking service or membership verification unavailable; retry with the same write identity.
+          headers:
+            X-Request-Id:
+              description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+            Retry-After:
+              description: Seconds before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                unavailable:
+                  value:
+                    error:
+                      code: SERVICE_UNAVAILABLE
+                      message: The booking service is temporarily unavailable.
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                membership:
+                  value:
+                    error:
+                      code: MEMBERSHIP_VERIFICATION_UNAVAILABLE
+                      message: Premium membership could not be verified. Retry with the same Idempotency-Key.
+                      refundRequiredByPayer: false
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
       security:
       - partnerBearer: []
       x-required-scopes:
@@ -1306,6 +1391,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - name: customerId
         in: query
         required: true
@@ -1313,6 +1399,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       responses:
         '200':
           description: Booking.
@@ -1322,16 +1409,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1434,6 +1524,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - name: orderId
         in: query
         required: false
@@ -1441,6 +1532,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - name: status
         in: query
         required: false
@@ -1484,16 +1576,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1560,8 +1655,6 @@ paths:
                     pageInfo:
                       limit: 10
                       hasMore: false
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1570,6 +1663,46 @@ paths:
           $ref: '#/components/responses/TooManyRequests'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+        '400':
+          description: Invalid fields or cursor.
+          headers:
+            X-Request-Id:
+              description: Echo of the request header
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+            X-Correlation-Id:
+              description: Echo of this logical operation's correlation ID
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+            X-Trace-Id:
+              description: Echo of the business-flow trace ID
+              schema:
+                type: string
+                format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                validation:
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid status, dates or page size.
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                cursor:
+                  value:
+                    error:
+                      code: INVALID_CURSOR
+                      message: The cursor is invalid or has expired. Restart the list.
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
       security:
       - partnerBearer: []
       x-required-scopes:
@@ -1598,6 +1731,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -1619,16 +1753,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1715,16 +1852,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -1779,6 +1919,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - name: customerId
         in: query
         required: true
@@ -1786,6 +1927,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       responses:
         '200':
           description: Eligibility.
@@ -1795,16 +1937,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1901,16 +2046,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -1994,6 +2142,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     XCorrelationId:
       name: X-Correlation-Id
       in: header
@@ -2002,6 +2151,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     XTraceId:
       name: X-Trace-Id
       in: header
@@ -2010,6 +2160,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -2019,6 +2170,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     Limit:
       name: limit
       in: query
@@ -2068,16 +2220,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -2101,16 +2256,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -2131,16 +2289,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -2161,16 +2322,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -2191,16 +2355,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         Retry-After:
           description: Seconds before retrying
           schema:
@@ -2226,16 +2393,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         Retry-After:
           description: Seconds before retrying
           schema:
@@ -2258,8 +2428,8 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Custom JSON partner-token issuance at POST /api/v1/partner/auth/token (INT-M03), not an OAuth2 token endpoint.
-        The signed JWS identifies a subsystem. The gateway enforces each operation's x-required-scopes. End-user JWE tokens
-        are never forwarded.
+        The signed JWS identifies a subsystem. PP's gateway or CP's security filter enforces each operation's x-required-scopes.
+        End-user JWE tokens are never forwarded.
       x-granted-scopes:
         search:read: PP-OP-01 to PP-OP-04
         quote:write: PP-OP-05
@@ -2444,6 +2614,7 @@ components:
           type: string
           description: Timestamp of the CP statistics this value came from
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - totalReviews
       - source
@@ -2455,12 +2626,14 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Company name of the accommodation provider
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchName:
           type: string
           description: Property name shown to customers
@@ -2489,7 +2662,10 @@ components:
         lowestPricePerNight:
           $ref: '#/components/schemas/Money'
         ratingSummary:
-          $ref: '#/components/schemas/RatingSummary'
+          allOf:
+          - $ref: '#/components/schemas/RatingSummary'
+          description: Omitted when CP is unavailable and no cached statistics exist. Absence means unavailable, not zero
+            reviews.
         matchedFields:
           type: array
           items:
@@ -2512,7 +2688,6 @@ components:
       - amenities
       - availableRoomCount
       - lowestPricePerNight
-      - ratingSummary
     PageInfo:
       type: object
       description: Cursor pagination metadata (lazy loading, PP-SEARCH-M02).
@@ -2536,6 +2711,7 @@ components:
         discountPackageId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         type:
@@ -2545,9 +2721,10 @@ components:
           description: Percentage (1-100) or minor units per night
           minimum: 1
         eligibleTier:
-          allOf:
-          - $ref: '#/components/schemas/MembershipTier'
-          description: Always PREMIUM
+          type: string
+          enum:
+          - PREMIUM
+          description: Only Premium customers receive this discount.
         active:
           type: boolean
           description: false once the discount program is cancelled
@@ -2558,6 +2735,17 @@ components:
       - value
       - eligibleTier
       - active
+      oneOf:
+      - properties:
+          type:
+            enum:
+            - PERCENTAGE
+          value:
+            maximum: 100
+      - properties:
+          type:
+            enum:
+            - FIXED_PER_NIGHT
     RoomSummary:
       type: object
       description: Room listing summary (PP-SEARCH-S03).
@@ -2565,9 +2753,11 @@ components:
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         roomType:
@@ -2654,6 +2844,7 @@ components:
         discountPackageId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         type:
@@ -2671,6 +2862,17 @@ components:
       - type
       - value
       - amount
+      oneOf:
+      - properties:
+          type:
+            enum:
+            - PERCENTAGE
+          value:
+            maximum: 100
+      - properties:
+          type:
+            enum:
+            - FIXED_PER_NIGHT
     PriceBreakdown:
       type: object
       description: Price calculated by PP (Decision D-06).
@@ -2707,13 +2909,15 @@ components:
           type: string
           description: CP application user ID
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         email:
           type: string
           format: email
         phone:
           type: string
-          description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03, CP-REG-M03)'
-          pattern: ^\+[1-9][0-9]{1,15}$
+          description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than 13 digits
+            after that code (PP-REG-M03, CP-REG-M03).
+          pattern: ^\+[1-9][0-9]{1,14}$
         countryOfResidence:
           type: string
           description: ISO 3166-1 alpha-2 country code
@@ -2735,9 +2939,32 @@ components:
           type: string
           description: Present when tier is PREMIUM
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - tier
       - status
+      oneOf:
+      - properties:
+          tier:
+            enum:
+            - STANDARD
+          status:
+            enum:
+            - NONE
+        not:
+          anyOf:
+          - required:
+            - validUntil
+      - properties:
+          tier:
+            enum:
+            - PREMIUM
+          status:
+            enum:
+            - ACTIVE
+            - EXPIRED
+        required:
+        - validUntil
     PaymentInfo:
       type: object
       description: Payer-side payment information sent by CP with CreateBooking.
@@ -2750,6 +2977,7 @@ components:
           type: string
           description: CP order ID (payer side)
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         paymentReference:
           type: string
           description: 'Required for DIRECT and ESCROW: PayPal capture ID or Stripe PaymentIntent ID'
@@ -2768,6 +2996,7 @@ components:
           type: string
           description: Required for DIRECT and ESCROW
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - mode
       - gateway
@@ -2842,6 +3071,7 @@ components:
           type: string
           description: Original CP order ID; retained for reconciliation
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         originalPaymentReference:
           type: string
           description: Preserved after cancellation (PP-MONEY-M03)
@@ -2880,18 +3110,79 @@ components:
             mode:
               enum:
               - SIMULATED
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+          not:
+            anyOf:
+            - required:
+              - originalPaymentReference
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
+            - required:
+              - returnPaymentReference
         - properties:
             mode:
               enum:
               - DIRECT
           required:
           - originalPaymentReference
+          not:
+            anyOf:
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
         - properties:
             mode:
               enum:
               - ESCROW
           required:
           - originalPaymentReference
+          - escrowStatus
+      - oneOf:
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - returnPaymentReference
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+              - PENDING
+              - FAILED
+      - oneOf:
+        - not:
+            anyOf:
+            - required:
+              - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - RELEASED
+          required:
+          - escrowStatus
+          - releaseReference
+        - properties:
+            escrowStatus:
+              enum:
+              - REFUNDED
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - HELD
+              - RELEASE_PENDING
+              - RELEASE_FAILED
+          required:
           - escrowStatus
       - oneOf:
         - not:
@@ -2953,6 +3244,7 @@ components:
         cancelledAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - cancelledBy
       - cancelledAt
@@ -2964,6 +3256,7 @@ components:
           type: string
           description: PP booking reference
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         bookingCode:
           type: string
           description: Short human-readable code
@@ -2973,15 +3266,19 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
         branchName:
@@ -3014,9 +3311,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - bookingId
       - bookingCode
@@ -3037,6 +3336,23 @@ components:
       - payment
       - createdAt
       - updatedAt
+      oneOf:
+      - properties:
+          status:
+            enum:
+            - CANCELLED
+        required:
+        - cancellation
+      - properties:
+          status:
+            enum:
+            - PENDING_APPROVAL
+            - CONFIRMED
+            - COMPLETED
+        not:
+          anyOf:
+          - required:
+            - cancellation
     Booking:
       allOf:
       - $ref: '#/components/schemas/BookingSummary'
@@ -3054,9 +3370,9 @@ components:
                 type: string
               branchPhone:
                 type: string
-                description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03,
-                  CP-REG-M03)'
-                pattern: ^\+[1-9][0-9]{1,15}$
+                description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than
+                  13 digits after that code (PP-REG-M03, CP-REG-M03).
+                pattern: ^\+[1-9][0-9]{1,14}$
             required:
             - branchName
             - branchPhone
@@ -3104,6 +3420,7 @@ components:
             timestamp:
               type: string
               format: date-time
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
           required:
           - code
           - message
@@ -3163,6 +3480,7 @@ components:
         reviewId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         overallScore:
           type: integer
           minimum: 1
@@ -3172,9 +3490,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - reviewId
       - overallScore
@@ -3261,11 +3581,13 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         membership:
           $ref: '#/components/schemas/MembershipSnapshot'
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           description: On or after today in the branch time zone
@@ -3318,15 +3640,19 @@ components:
         quoteId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -3355,9 +3681,11 @@ components:
           type: string
           description: createdAt + 15 minutes
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - quoteId
       - roomId
@@ -3379,6 +3707,7 @@ components:
           type: string
           description: From CreatePriceQuote
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customer:
           $ref: '#/components/schemas/CustomerSnapshot'
         membership:
@@ -3386,6 +3715,7 @@ components:
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         checkInDate:
           type: string
           format: date
@@ -3424,6 +3754,7 @@ components:
           type: string
           description: Must own the booking
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         reason:
           type: string
           maxLength: 500
@@ -3436,19 +3767,23 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           description: Review target. Reviews are per provider, not per room.
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Accommodation provider company name
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchName:
           type: string
           description: Booked branch property name
@@ -3476,11 +3811,36 @@ components:
         evaluatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - bookingId
       - customerId
       - eligible
       - evaluatedAt
+      oneOf:
+      - properties:
+          eligible:
+            enum:
+            - true
+        required:
+        - providerId
+        - providerName
+        - branchId
+        - branchName
+        - stayStartDate
+        - stayEndDate
+        - reviewableFrom
+        - bookingStatus
+        not:
+          anyOf:
+          - required:
+            - reason
+      - properties:
+          eligible:
+            enum:
+            - false
+        required:
+        - reason
     EventInfo:
       type: object
       description: Regional event data supplied by CP (CP owns events).
@@ -3489,6 +3849,7 @@ components:
           type: string
           description: CP event ID
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         summary:
@@ -3536,12 +3897,14 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
           description: Accommodation provider's (company) name
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
           description: Accommodation (branch) name
@@ -3578,12 +3941,15 @@ components:
         requestId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         favoriteId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         event:
           $ref: '#/components/schemas/EventInfo'
       required:
@@ -3597,12 +3963,15 @@ components:
         requestId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         favoriteId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         event:
           $ref: '#/components/schemas/EventInfo'
         suggestions:
@@ -3619,6 +3988,7 @@ components:
         generatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - requestId
       - favoriteId

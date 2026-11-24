@@ -47,7 +47,7 @@ def b(desc=None, **kw):
 
 
 def uuid(desc=None):
-    return s(desc, format="uuid")
+    return s(desc, format="uuid", pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 
 
 def date(desc=None):
@@ -55,7 +55,7 @@ def date(desc=None):
 
 
 def dt(desc=None):
-    return s(desc, format="date-time")
+    return s(desc, format="date-time", pattern=r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$")
 
 
 def arr(items, desc=None, **kw):
@@ -93,8 +93,8 @@ def absent(*names):
 
 TIME_HHMM = s("Local time, HH:mm", pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 COUNTRY = s("ISO 3166-1 alpha-2 country code", pattern=r"^[A-Z]{2}$")
-PHONE = s("E.164: '+' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03, CP-REG-M03)",
-          pattern=r"^\+[1-9][0-9]{1,15}$")
+PHONE = s("E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than 13 digits after that code (PP-REG-M03, CP-REG-M03).",
+          pattern=r"^\+[1-9][0-9]{1,14}$")
 
 # ---------------------------------------------------------------- schemas
 S = {}
@@ -153,11 +153,11 @@ S["ProviderSearchResult"] = obj({
     "amenities": arr(ref("Amenity"), "Union of amenities across active rooms"),
     "availableRoomCount": i("Sum of available quantity for the requested dates", minimum=0),
     "lowestPricePerNight": ref("Money"),
-    "ratingSummary": ref("RatingSummary"),
+    "ratingSummary": described(ref("RatingSummary"), "Omitted when CP is unavailable and no cached statistics exist. Absence means unavailable, not zero reviews."),
     "matchedFields": arr(s(), "Medium FTS only: fields that matched"),
     "relevanceScore": num("Medium FTS only: rank between 0 and 1", minimum=0, maximum=1),
 }, ["providerId", "providerName", "branchId", "branchName", "category", "logoUrl", "location", "roomTypesOffered",
-    "amenities", "availableRoomCount", "lowestPricePerNight", "ratingSummary"],
+    "amenities", "availableRoomCount", "lowestPricePerNight"],
     "One branch (property at one address) of a provider. The unit of a search result (Decision D-04).")
 
 S["PageInfo"] = obj({
@@ -171,9 +171,13 @@ S["DiscountPolicySummary"] = obj({
     "name": s(),
     "type": ref("DiscountType"),
     "value": i("Percentage (1-100) or minor units per night", minimum=1),
-    "eligibleTier": described(ref("MembershipTier"), "Always PREMIUM"),
+    "eligibleTier": enum(["PREMIUM"], "Only Premium customers receive this discount."),
     "active": b("false once the discount program is cancelled"),
 }, ["discountPackageId", "name", "type", "value", "eligibleTier", "active"], "Discount policy assigned to a room (PP-DISCOUNT-S01).")
+S["DiscountPolicySummary"]["oneOf"] = [
+    {"properties": {"type": {"enum": ["PERCENTAGE"]}, "value": {"maximum": 100}}},
+    {"properties": {"type": {"enum": ["FIXED_PER_NIGHT"]}}},
+]
 
 S["RoomSummary"] = obj({
     "roomId": uuid(),
@@ -208,6 +212,7 @@ S["AppliedDiscount"] = obj({
     "value": i(minimum=1),
     "amount": described(ref("Money"), "Total discount for the whole booking"),
 }, ["discountPackageId", "name", "type", "value", "amount"], "Discount snapshot stored on a quote or booking.")
+S["AppliedDiscount"]["oneOf"] = copy.deepcopy(S["DiscountPolicySummary"]["oneOf"])
 
 S["PriceBreakdown"] = obj({
     "nights": i(minimum=1),
@@ -231,6 +236,10 @@ S["MembershipSnapshot"] = obj({
     "status": ref("MembershipStatus"),
     "validUntil": dt("Present when tier is PREMIUM"),
 }, ["tier", "status"], "Membership snapshot sent by CP. PP re-verifies it with CP-OP-02 before applying a discount.")
+S["MembershipSnapshot"]["oneOf"] = [
+    {"properties": {"tier": {"enum": ["STANDARD"]}, "status": {"enum": ["NONE"]}}, **absent("validUntil")},
+    {"properties": {"tier": {"enum": ["PREMIUM"]}, "status": {"enum": ["ACTIVE", "EXPIRED"]}}, "required": ["validUntil"]},
+]
 
 S["PaymentInfo"] = obj({
     "mode": ref("PaymentMode"),
@@ -272,9 +281,22 @@ S["BookingPaymentStatus"] = obj({
 }, ["mode", "returnPaymentStatus"], "Beneficiary-side payment status of a booking.")
 S["BookingPaymentStatus"]["allOf"] = [
     {"oneOf": [
-        {"properties": {"mode": {"enum": ["SIMULATED"]}}},
-        {"properties": {"mode": {"enum": ["DIRECT"]}}, "required": ["originalPaymentReference"]},
+        {"properties": {"mode": {"enum": ["SIMULATED"]}, "returnPaymentStatus": {"enum": ["NOT_REQUIRED"]}},
+         **absent("originalPaymentReference", "escrowStatus", "releaseReference", "returnPaymentReference")},
+        {"properties": {"mode": {"enum": ["DIRECT"]}}, "required": ["originalPaymentReference"],
+         **absent("escrowStatus", "releaseReference")},
         {"properties": {"mode": {"enum": ["ESCROW"]}}, "required": ["originalPaymentReference", "escrowStatus"]},
+    ]},
+    {"oneOf": [
+        {"properties": {"returnPaymentStatus": {"enum": ["SUCCEEDED"]}}, "required": ["returnPaymentReference"]},
+        {"properties": {"returnPaymentStatus": {"enum": ["NOT_REQUIRED", "PENDING", "FAILED"]}}},
+    ]},
+    {"oneOf": [
+        absent("escrowStatus"),
+        {"properties": {"escrowStatus": {"enum": ["RELEASED"]}}, "required": ["escrowStatus", "releaseReference"]},
+        {"properties": {"escrowStatus": {"enum": ["REFUNDED"]}, "returnPaymentStatus": {"enum": ["SUCCEEDED"]}},
+         "required": ["escrowStatus"]},
+        {"properties": {"escrowStatus": {"enum": ["HELD", "RELEASE_PENDING", "RELEASE_FAILED"]}}, "required": ["escrowStatus"]},
     ]},
     {"oneOf": [
         absent("transferReversalStatus", "transferReversalReference", "transferReversalFailureCause"),
@@ -309,6 +331,10 @@ S["BookingSummary"] = obj({
 }, ["bookingId", "bookingCode", "status", "customerId", "providerId", "branchId", "roomId", "providerName", "branchName",
     "roomName", "checkInDate", "checkOutDate", "quantity", "adults", "children", "priceBreakdown", "payment", "createdAt",
     "updatedAt"], "Authoritative booking state owned by PP.")
+S["BookingSummary"]["oneOf"] = [
+    {"properties": {"status": {"enum": ["CANCELLED"]}}, "required": ["cancellation"]},
+    {"properties": {"status": {"enum": ["PENDING_APPROVAL", "CONFIRMED", "COMPLETED"]}}, **absent("cancellation")},
+]
 
 S["Booking"] = {"allOf": [ref("BookingSummary"), obj({
     "reviewableFrom": date("Equal to checkInDate (Decision D-10)"),
@@ -423,6 +449,12 @@ S["ReviewEligibility"] = obj({
     "reason": enum(["BEFORE_STAY_START", "BOOKING_CANCELLED", "NOT_CONFIRMED", "NOT_BOOKING_OWNER"], "Present when eligible is false"),
     "evaluatedAt": dt(),
 }, ["bookingId", "customerId", "eligible", "evaluatedAt"], "Review eligibility (Decision D-10).")
+S["ReviewEligibility"]["oneOf"] = [
+    {"properties": {"eligible": {"enum": [True]}},
+     "required": ["providerId", "providerName", "branchId", "branchName", "stayStartDate", "stayEndDate", "reviewableFrom", "bookingStatus"],
+     **absent("reason")},
+    {"properties": {"eligible": {"enum": [False]}}, "required": ["reason"]},
+]
 
 S["EventInfo"] = obj({
     "eventId": uuid("CP event ID"),
@@ -477,6 +509,13 @@ S["BookingStatusEvent"] = obj({
     "emailData": described(ref("EmailData"), "Present for BOOKING_CONFIRMED and BOOKING_CANCELLED"),
     "message": s("Short receptionist note shown to the customer"),
 }, ["eventId", "eventType", "occurredAt", "sequence", "booking"], "Booking status change pushed by PP (PP-OP-11).")
+S["BookingStatusEvent"]["oneOf"] = [
+    {"properties": {"eventType": {"enum": [event_type]},
+                    "booking": obj({"status": {"enum": [status]}})},
+     **({"required": ["emailData"]} if event_type != "BOOKING_COMPLETED" else {})}
+    for event_type, status in [("BOOKING_CONFIRMED", "CONFIRMED"),
+                               ("BOOKING_CANCELLED", "CANCELLED"), ("BOOKING_COMPLETED", "COMPLETED")]
+] + [{"properties": {"eventType": {"enum": ["RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"]}}}]
 
 S["BookingEventAck"] = obj({"eventId": uuid(), "accepted": b(), "duplicate": b()}, ["eventId", "accepted", "duplicate"])
 
@@ -508,6 +547,11 @@ S["Membership"] = obj({
     "customerId": uuid(), "tier": ref("MembershipTier"), "status": ref("MembershipStatus"),
     "validFrom": dt(), "validUntil": dt(),
 }, ["customerId", "tier", "status"])
+S["Membership"]["oneOf"] = [
+    {"properties": {"tier": {"enum": ["STANDARD"]}, "status": {"enum": ["NONE"]}}, **absent("validFrom", "validUntil")},
+    {"properties": {"tier": {"enum": ["PREMIUM"]}, "status": {"enum": ["ACTIVE", "EXPIRED"]}},
+     "required": ["validFrom", "validUntil"]},
+]
 S["UpdateOrderRequest"] = obj({
     "action": enum(["COMPLETE", "CANCEL"], "COMPLETE on receptionist approval, CANCEL on cancellation"),
     "bookingId": uuid(), "reason": s(maxLength=500),
@@ -544,6 +588,8 @@ S["RatingStatisticsRequest"] = obj({
     "commentsLimit": i(minimum=1, maximum=50), "commentsCursor": s(),
 }, ["providerId"])
 S["MembershipRequest"] = obj({"customerId": uuid()}, ["customerId"])
+for name in ["SearchProvidersRequest", "GetBranchRequest", "ListRoomsRequest", "GetRoomRequest"]:
+    S[name]["dependencies"] = {"checkInDate": ["checkOutDate"], "checkOutDate": ["checkInDate"]}
 S["EventFavoriteChanged"] = obj({
     "changeType": enum(["FAVORITE_ADDED", "FAVORITE_REMOVED", "EVENT_DATES_CHANGED", "EVENT_DELETED"], "Change type"),
     "favoriteId": uuid("Required for FAVORITE_*"),
@@ -692,6 +738,20 @@ STATS = {
     "comments": {"items": [{"reviewId": IDS["review"], "overallScore": 5, "text": "Lovely hosts and a great breakfast.",
                             "createdAt": "2026-10-02T08:00:00Z", "updatedAt": "2026-10-02T08:00:00Z"}]},
 }
+for subcategory, prefix, labels in [
+    ("FRIENDLINESS", "FRD", ["Staff were warm and welcoming", "Hosts went above and beyond to help",
+                             "Staff were polite but distant", "Check-in greeting was average",
+                             "Staff attitude was rude or unhelpful", "Communication with reception was difficult"]),
+    ("ROOM", "RM", ["Room was spotless and comfortable", "Amenities and bed quality matched the photos",
+                    "Room was clean but slightly dated", "Noise isolation could be improved",
+                    "Room cleanliness was below expectations", "Listed amenities were broken or missing"]),
+]:
+    sample = copy.deepcopy(STATS["subcategories"][0])
+    sample["subcategory"] = subcategory
+    for option, label in zip(sample["presetOptions"], labels):
+        option["optionId"] = option["optionId"].replace("SRV-", prefix + "-")
+        option["label"] = label
+    STATS["subcategories"].append(sample)
 MEMBER = {"customerId": IDS["customer"], "tier": "PREMIUM", "status": "ACTIVE", "validFrom": "2026-08-01T00:00:00Z", "validUntil": "2027-08-01T00:00:00Z"}
 TOKEN_REQ_CP = {"clientId": "cp-subsystem", "clientSecret": "replace-with-secret-from-environment-0123456789", "scope": ["search:read", "booking:write"]}
 TOKEN_REQ_PP = {"clientId": "pp-subsystem", "clientSecret": "replace-with-secret-from-environment-0123456789", "scope": ["rating:read", "membership:read"]}
@@ -831,7 +891,7 @@ def security_schemes(scopes):
             "type": "http", "scheme": "bearer", "bearerFormat": "JWT",
             "description": "Custom JSON partner-token issuance at POST /api/v1/partner/auth/token (INT-M03), "
                            "not an OAuth2 token endpoint. The signed JWS identifies a subsystem. "
-                           "The gateway enforces each operation's x-required-scopes. End-user JWE tokens are never forwarded.",
+                           "PP's gateway or CP's security filter enforces each operation's x-required-scopes. End-user JWE tokens are never forwarded.",
             "x-granted-scopes": scopes,
         }
     }
@@ -966,7 +1026,9 @@ pp_paths["/bookings"] = {"post": op(
                       "notCaptured": ex(err("PAYMENT_NOT_CAPTURED", "PaymentIntent pi_3QAbCdTEST0001 has no successful capture to return.", refundRequiredByPayer=False)),
                       "referenceMismatch": ex(err("PAYMENT_REFERENCE_MISMATCH", "chargeReference does not belong to the submitted PaymentIntent.", refundRequiredByPayer=False)),
                       "amountMismatch": ex(err("PAYMENT_AMOUNT_MISMATCH", "Paid amount 12000 does not equal the quote total 12750.", refundRequiredByPayer=True))}),
-     "503": R("ServiceUnavailable")},
+     "503": err_resp("Booking service or membership verification unavailable; retry with the same write identity.",
+                     {"unavailable": ex(err("SERVICE_UNAVAILABLE", "The booking service is temporarily unavailable.")),
+                      "membership": ex(err("MEMBERSHIP_VERIFICATION_UNAVAILABLE", "Premium membership could not be verified. Retry with the same Idempotency-Key.", refundRequiredByPayer=False))}, retry_after=True)},
     "rs.booking.request.v1 (type=CREATE_BOOKING, key customerId) -> rs.booking.response.v1 (type=CREATE_BOOKING_RESULT)",
     "PP-BOOK-S01, S02, U01, PP-MONEY-M01, U01; CP-BOOK-S01, S02, CP-MONEY-M01, U01, U04")}
 
@@ -989,7 +1051,10 @@ pp_paths["/customers/{customerId}/bookings"] = {"get": op(
      {"name": "sort", "in": "query", "required": False, "schema": enum(["CHECK_IN_DESC", "CREATED_DESC"], "Sort order")},
      P("Limit"), P("Cursor")], None,
     {**ok("Bookings.", ref("BookingListResponse"), {"default": ex({"items": [CONFIRMED], "pageInfo": {"limit": 10, "hasMore": False}})}),
-     **std_errors("400", "401", "403", "429", "503")},
+     **std_errors("401", "403", "429", "503"),
+     "400": err_resp("Invalid fields or cursor.",
+                     {"validation": ex(err("VALIDATION_ERROR", "Invalid status, dates or page size.")),
+                      "cursor": ex(err("INVALID_CURSOR", "The cursor is invalid or has expired. Restart the list."))})},
     "rs.booking.request.v1 (type=LIST_BOOKINGS) -> rs.booking.response.v1 (type=LIST_BOOKINGS_RESULT)", "CP-BOOK-S02")}
 
 pp_paths["/bookings/{bookingId}/cancellations"] = {"post": op(
@@ -1072,12 +1137,16 @@ cp_paths["/customers/{customerId}/membership"] = {"get": op(
     {**ok("Membership.", ref("Membership"), {"default": ex(MEMBER)}), **std_errors("400", "401", "403", "404", "429", "503")},
     "rs.membership.request.v1 (type=GET_MEMBERSHIP) -> rs.membership.response.v1 (type=GET_MEMBERSHIP_RESULT)", "PP-DISCOUNT-S02")}
 cp_paths["/orders/{orderId}"] = {"patch": op(
-    "updateSimulatedOrder", "CP-OP-03", "Complete or cancel simulated order", "Simplex only. PP completes or cancels the simulated order issued by CP.",
+    "updateSimulatedOrder", "CP-OP-03", "Complete or cancel simulated order", "Simplex only. PP completes or cancels the simulated order issued by CP. "
+    "ISSUED may become COMPLETED or CANCELLED; COMPLETED may become CANCELLED for a subsequent booking cancellation. "
+    "A matching repeat is idempotent; CANCELLED cannot become COMPLETED and the booking binding cannot change.",
     "Orders", "order:write", [path_param("orderId", "CP order ID"), P("IdempotencyKey")],
     body(ref("UpdateOrderRequest"), {"complete": ex({"action": "COMPLETE", "bookingId": IDS["booking"]})}),
     {**ok("Order updated.", ref("Order"), {"default": ex({"orderId": IDS["order"], "status": "COMPLETED", "bookingId": IDS["booking"], "updatedAt": "2026-12-01T09:15:41Z"})}),
      **std_errors("400", "401", "403", "404", "429", "503"),
-     "409": err_resp("Order already final with a different action.", {"state": ex(err("STATE_CONFLICT", "The order is already CANCELLED."))})},
+     "409": err_resp("Order state or idempotency conflict.",
+                     {"state": ex(err("STATE_CONFLICT", "The order is already CANCELLED.")),
+                      "idempotency": ex(err("IDEMPOTENCY_CONFLICT", "This Idempotency-Key was already used with a different request body."))})},
     None, "PP-MONEY-S01; CP-MONEY-S01")}
 cp_paths["/booking-events"] = {"post": op(
     "receiveBookingEvent", "CP-OP-04", "Receive booking status event (webhook)",
@@ -1086,7 +1155,7 @@ cp_paths["/booking-events"] = {"post": op(
     "requests older than 300 s are rejected.", "Booking events", "booking-event:write", None,
     body(ref("BookingStatusEvent"), {"confirmed": ex(BOOKING_EVENT, "Booking confirmed, escrow released")}),
     {**ok("Event accepted.", ref("BookingEventAck"), {"default": ex({"eventId": BOOKING_EVENT["eventId"], "accepted": True, "duplicate": False})}),
-     **std_errors("400", "401", "429", "503")},
+     **std_errors("400", "401", "403", "429", "503")},
     "replaced by rs.booking.events.v1 (PP -> CP)", "PP-MONEY-S01, M03; CP-MONEY-S01, M02",
     security=[{"partnerBearer": [], "webhookSignature": []}])}
 
@@ -1250,12 +1319,12 @@ A_MSG = {
                               ["CREATE_QUOTE", "CREATE_BOOKING", "GET_BOOKING", "LIST_BOOKINGS", "CANCEL_BOOKING", "GET_ELIGIBILITY"],
                               ["QuoteRequest", "CreateBookingRequest", "GetBookingRequest", "ListBookingsRequest", "CancelBookingCommand", "GetEligibilityRequest"],
                               "customerId for CREATE_QUOTE, CREATE_BOOKING and LIST_BOOKINGS; bookingId otherwise",
-                              [("createBooking", env_example("CREATE_BOOKING", "CP", BOOK_REQ, "rs.booking.response.v1", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8"))]),
+                              [("createBooking", env_example("CREATE_BOOKING", "CP", BOOK_REQ, "rs.booking.response.v1", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8", ts="2026-12-01T03:02:11Z"))]),
     "BookingResponse": message("BookingResponse", "Booking response", "PP answers a booking request with the same correlationId.",
                                ["CREATE_QUOTE_RESULT", "CREATE_BOOKING_RESULT", "GET_BOOKING_RESULT", "LIST_BOOKINGS_RESULT", "CANCEL_BOOKING_RESULT", "GET_ELIGIBILITY_RESULT"],
                                ["Quote", "Booking", "BookingSummary", "BookingListResponse", "ReviewEligibility", "Error"], "same key as the request",
-                               [("createBookingResult", env_example("CREATE_BOOKING_RESULT", "PP", BOOKING, status="OK", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8", mid="6b0e2a71-0000-4000-8000-00000000a102", ts="2026-12-01T03:00:01Z")),
-                                ("quoteExpired", env_example("CREATE_BOOKING_RESULT", "PP", {"error": {"code": "QUOTE_EXPIRED", "httpStatus": 409, "message": "The price quote has expired. Request a new quote.", "refundRequiredByPayer": True, "requestId": "e1a2b3c4-0000-4000-8000-00000000a001", "timestamp": "2026-12-01T03:00:01Z"}}, status="ERROR", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8", mid="6b0e2a71-0000-4000-8000-00000000a103", ts="2026-12-01T03:00:01Z"))]),
+                               [("createBookingResult", env_example("CREATE_BOOKING_RESULT", "PP", BOOKING, status="OK", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8", mid="6b0e2a71-0000-4000-8000-00000000a102", ts="2026-12-01T03:02:12Z")),
+                                ("quoteExpired", env_example("CREATE_BOOKING_RESULT", "PP", {"error": {"code": "QUOTE_EXPIRED", "httpStatus": 409, "message": "The price quote has expired. Request a new quote.", "refundRequiredByPayer": True, "requestId": "e1a2b3c4-0000-4000-8000-000000000003", "timestamp": "2026-12-01T03:02:12Z"}}, status="ERROR", correlation="a3f1b2c4-5d6e-4f70-8192-a3b4c5d6e7f8", mid="6b0e2a71-0000-4000-8000-00000000a103", ts="2026-12-01T03:02:12Z"))]),
     "BookingStatusEvent": message("BookingStatusEvent", "Booking status event", "PP publishes every booking transition (PP-OP-11).",
                                   ["BOOKING_CONFIRMED", "BOOKING_CANCELLED", "BOOKING_COMPLETED", "RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"],
                                   ["BookingStatusEvent"], "bookingId",

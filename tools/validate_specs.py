@@ -7,7 +7,9 @@ import contextlib
 import copy
 from datetime import datetime
 import io
+import json
 from pathlib import Path
+import re
 import runpy
 import sys
 import tempfile
@@ -48,6 +50,16 @@ def rest_examples(node, path="$", doc=None):
     elif isinstance(node, list):
         for index, value in enumerate(node):
             yield from rest_examples(value, path + "/" + str(index))
+
+
+def objects(node):
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from objects(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from objects(value)
 
 
 class ContractValidation(unittest.TestCase):
@@ -223,6 +235,10 @@ class ContractValidation(unittest.TestCase):
                 self.assertEqual(response["type"], request["type"] + "_RESULT")
                 self.assertEqual(response["correlationId"], request["correlationId"])
                 self.assertEqual(response["traceId"], request["traceId"])
+                if response["status"] == "ERROR":
+                    self.assertEqual(response["payload"]["error"]["requestId"], request["messageId"])
+                if request["type"] == "CREATE_BOOKING":
+                    self.assertLessEqual(request["payload"]["payment"]["paidAt"], request["timestamp"])
 
     def test_order_reconciliation_binding_is_available(self):
         doc = DOCS[FILES[0]]
@@ -230,6 +246,128 @@ class ContractValidation(unittest.TestCase):
         self.assertTrue(any(p.get("name") == "orderId" for p in operation["parameters"]))
         payload = ASYNC["components"]["schemas"]["ListBookingsRequest"]
         self.assertIn("orderId", payload["properties"])
+
+    def test_wire_identifiers_timestamps_and_phone_syntax(self):
+        for field, value in [("messageId", "e1a2b3c4-0000-1000-8000-00000000a001"),
+                             ("messageId", "E1A2B3C4-0000-4000-8000-00000000A001"),
+                             ("timestamp", "2026-12-01T10:00:00+07:00"),
+                             ("timestamp", "2026-12-01T03:00:00.12Z")]:
+            data = example("BookingRequest")
+            data[field] = value
+            self.assert_invalid("BookingRequest", data)
+        data = example("BookingRequest")
+        data["payload"]["customer"]["phone"] = "+1234567890123456"
+        self.assert_invalid("BookingRequest", data)
+
+    def test_membership_and_discount_contract_rules(self):
+        for membership in [{"tier": "PREMIUM", "status": "ACTIVE"},
+                           {"tier": "STANDARD", "status": "ACTIVE"}]:
+            data = example("BookingRequest")
+            data["payload"]["membership"] = membership
+            self.assert_invalid("BookingRequest", data)
+        data = example("BookingRequest")
+        data["payload"]["membership"] = {"tier": "STANDARD", "status": "NONE"}
+        self.assert_valid("BookingRequest", data)
+        data = example("BookingResponse")
+        data["payload"]["priceBreakdown"]["discount"]["value"] = 101
+        self.assert_invalid("BookingResponse", data)
+
+    def test_stay_queries_require_both_dates(self):
+        for ex in MESSAGES["SearchRequest"]["examples"]:
+            data = copy.deepcopy(ex["payload"])
+            data["payload"]["checkInDate"] = "2027-04-10"
+            data["payload"].pop("checkOutDate", None)
+            self.assert_invalid("SearchRequest", data)
+
+    def test_cancellation_and_event_outcomes(self):
+        data = next(copy.deepcopy(ex["payload"]) for ex in MESSAGES["BookingStatusEvent"]["examples"]
+                    if ex["payload"]["type"] == "BOOKING_CANCELLED")
+        del data["payload"]["booking"]["cancellation"]
+        self.assert_invalid("BookingStatusEvent", data)
+        data = example("BookingStatusEvent")
+        del data["payload"]["emailData"]
+        self.assert_invalid("BookingStatusEvent", data)
+        data = example("BookingStatusEvent")
+        data["payload"]["booking"]["status"] = "PENDING_APPROVAL"
+        self.assert_invalid("BookingStatusEvent", data)
+        data = example("BookingResponse")
+        data["payload"]["payment"]["returnPaymentStatus"] = "SUCCEEDED"
+        self.assert_invalid("BookingResponse", data)
+        data = example("BookingResponse")
+        data["payload"]["payment"]["escrowStatus"] = "RELEASED"
+        self.assert_invalid("BookingResponse", data)
+
+    def test_eligible_review_has_provider_and_stay_evidence(self):
+        data = next(copy.deepcopy(ex["payload"]) for ex in MESSAGES["BookingResponse"]["examples"]
+                    if ex["payload"]["type"] == "GET_ELIGIBILITY_RESULT")
+        data["payload"]["eligible"] = True
+        data["payload"].pop("reason", None)
+        self.assert_valid("BookingResponse", data)
+        del data["payload"]["providerId"]
+        self.assert_invalid("BookingResponse", data)
+
+    def test_unavailable_rating_is_distinct_from_zero_reviews(self):
+        data = example("SearchResponse")
+        del data["payload"]["items"][0]["ratingSummary"]
+        self.assert_valid("SearchResponse", data)
+        data["payload"]["items"][0]["ratingSummary"] = {"overallAverage": 0}
+        self.assert_invalid("SearchResponse", data)
+
+    def test_markdown_json_and_complete_kafka_examples(self):
+        count = 0
+        for directory in ["common", "provider-portal", "customer-portal", "pms"]:
+            for path in (ROOT / directory).glob("*.md"):
+                content = path.read_text(encoding="utf-8")
+                for block in re.finditer(r"```json\s*\n(.*?)\n```", content, re.S):
+                    with self.subTest(file=path.name, line=content[:block.start()].count("\n") + 1):
+                        data = json.loads(block[1])
+                        if not isinstance(data, dict) or not {"type", "schemaVersion", "payload"} <= data.keys():
+                            continue
+                        # Explicitly abridged explanatory snippets are not wire examples.
+                        context = content[max(0, block.start() - 300):block.end() + 300]
+                        if "abridged" in context or '"..."' in block[1]:
+                            continue
+                        count += 1
+                        self.assertTrue(any(validator(ASYNC, msg["payload"]).is_valid(data)
+                                            for msg in MESSAGES.values()), "Complete Markdown Kafka example violates the schema")
+                        if "replyTo" in data:
+                            start = datetime.fromisoformat(data["timestamp"].replace("Z", "+00:00"))
+                            end = datetime.fromisoformat(data["deadline"].replace("Z", "+00:00"))
+                            expected = (45 if data["type"] in {"CREATE_QUOTE", "CREATE_BOOKING", "CANCEL_BOOKING"}
+                                        else 20 if data["type"] == "GET_RATING_STATISTICS" else 12)
+                            self.assertEqual((end - start).total_seconds(), expected)
+        self.assertGreater(count, 0)
+        print(f"Validated {count} complete Markdown Kafka examples and all fenced JSON syntax.")
+
+    def test_partner_operations_expose_authorization_and_write_conflicts(self):
+        for doc in (DOCS[path] for path in FILES[:2]):
+            for item in doc["paths"].values():
+                for method, operation in item.items():
+                    if method not in {"get", "post", "patch"} or operation["operationId"] == "issuePartnerToken":
+                        continue
+                    self.assertIn("403", operation["responses"])
+                    if any(p.get("$ref", "").endswith("/IdempotencyKey") for p in operation["parameters"]):
+                        response = operation["responses"]["409"]
+                        codes = {ex["value"]["error"]["code"] for ex in response["content"]["application/json"]["examples"].values()}
+                        self.assertIn("IDEMPOTENCY_CONFLICT", codes)
+
+    def test_example_price_arithmetic(self):
+        samples = list(DOCS.items())
+        for directory in ["common", "provider-portal", "customer-portal"]:
+            for path in (ROOT / directory).glob("*.md"):
+                samples.extend((str(path), json.loads(block[1])) for block in
+                               re.finditer(r"```json\s*\n(.*?)\n```", path.read_text(encoding="utf-8"), re.S))
+        for source, sample in samples:
+            for price in objects(sample):
+                if not {"nights", "quantity", "unitPricePerNight", "subtotal", "total"} <= price.keys():
+                    continue
+                if not isinstance(price["nights"], int):
+                    continue  # Schema property definitions are not example values.
+                with self.subTest(source=source):
+                    self.assertEqual(price["subtotal"]["amountMinor"],
+                                     price["unitPricePerNight"]["amountMinor"] * price["nights"] * price["quantity"])
+                    discount = price.get("discount", {}).get("amount", {"amountMinor": 0})
+                    self.assertEqual(price["total"]["amountMinor"], price["subtotal"]["amountMinor"] - discount["amountMinor"])
 
 
 if __name__ == "__main__":

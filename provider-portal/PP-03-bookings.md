@@ -312,7 +312,7 @@ Response: `{ "items": BookingSummary[], "pageInfo": {...} }`
       "checkInDate": "2027-04-10",
       "checkOutDate": "2027-04-13",
       "quantity": 2, "adults": 3, "children": 1,
-      "priceBreakdown": { "nights": 3, "quantity": 2, "unitPricePerNight": { "amountMinor": 2500, "currency": "USD" }, "subtotal": { "amountMinor": 15000, "currency": "USD" }, "total": { "amountMinor": 12750, "currency": "USD" } },
+      "priceBreakdown": { "nights": 3, "quantity": 2, "unitPricePerNight": { "amountMinor": 2500, "currency": "USD" }, "subtotal": { "amountMinor": 15000, "currency": "USD" }, "discount": { "discountPackageId": "d15c0a7e-0000-4000-8000-000000000015", "name": "Premium 15% Off", "type": "PERCENTAGE", "value": 15, "amount": { "amountMinor": 2250, "currency": "USD" } }, "total": { "amountMinor": 12750, "currency": "USD" } },
       "payment": { "mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED", "releaseReference": "tr_1QXyzTEST0001", "returnPaymentStatus": "NOT_REQUIRED" },
       "createdAt": "2026-12-01T03:02:12Z",
       "updatedAt": "2026-12-01T09:15:40Z"
@@ -337,7 +337,7 @@ For timeout reconciliation, use `orderId` without status/date filters. It return
 
 > **Shard routing (PP-SEARCH-U01 style):** Reservations are sharded by **`branch country`**, with a secondary index table `customer_booking_index (customerId → bookingId, shardId)` cached in Redis. A list query touches only the shards that hold that customer's bookings.
 >
-> **CP Modular Monolith Integration (`BookingModule` → `RatingModule`):** When serving `GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST`, CP's `BookingModule` fetches the customer's bookings via `PP-OP-08` (requesting `limit=50` so post-filtering never yields an empty page 1) and joins them **in-process** with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`) to classify bookings into the 3 UI groups (`CP-BOOK-S02(b)`, Decision D-09).
+> **CP Modular Monolith Integration (`BookingModule` → `RatingModule`):** When serving `GET /api/v1/customer/bookings?group=PENDING_AND_ACTIVE|NOT_REVIEWED|PAST`, CP's `BookingModule` fetches bookings via `PP-OP-08` and joins them **in-process** with `RatingModule` via `IRatingExternalService` (`ReviewedBookingIdsDto`). CP follows upstream cursors until the requested group page is filled or PP reports `hasMore=false`; even `limit=50` cannot guarantee a match on the first upstream page. CP's customer-facing cursor retains the upstream position and any unconsumed matches, so no booking is skipped. If an upstream request fails, return controlled unavailability rather than claim that the group is empty.
 
 ---
 
@@ -472,4 +472,4 @@ A `BookingSummary` with `status=CANCELLED`, the `cancellation` filled, and `paym
 
 A booking owned by a different customer returns `200` with `eligible=false` and `reason=NOT_BOOKING_OWNER`, so CP can show a precise message without PP disclosing booking details (only the IDs in the request are echoed).
 
-CP must call this **at review creation**. CP-RATING-S01 evidence requires that pre-stay creation is rejected. CP may cache an `eligible=true` result for the booking.
+CP must call this **at review creation**. CP-RATING-S01 evidence requires that pre-stay creation is rejected. Cached eligibility may support display, but review creation re-verifies it because a previously confirmed booking can subsequently be cancelled.

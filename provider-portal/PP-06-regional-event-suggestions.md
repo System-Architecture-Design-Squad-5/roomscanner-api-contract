@@ -286,7 +286,7 @@ Event start: **12 Apr 2027** → window start **11 Feb 2027** (D-12).
 | Andy (after an admin edits only the description on 1 Jan 2027) | N/A | unchanged | still 11 Feb 2027, no extra notification |
 
 ### Reliability
-- Schedules are persisted in PP's DB, so they survive restarts. A scheduler (every minute, with a distributed lock in Redis so only one instance publishes) publishes the due rows and marks them `PUBLISHED`.
-- The CP consumer is idempotent on `notificationId`. PP never republishes a `PUBLISHED` row.
+- Schedules are persisted in PP's DB, so they survive restarts. A scheduler runs every minute with a distributed lock. In one database transaction it inserts a due notification into the outbox and marks the schedule `PUBLISHED`; the outbox relay retries Kafka publication until acknowledged. A crash between publication and acknowledgement may cause redelivery with the same `notificationId`.
+- The CP consumer is idempotent on `notificationId`. PP never creates another business notification for a `PUBLISHED` schedule; transport retries retain its identity. Re-favoriting creates a new `favoriteId` and a new schedule.
 - Eligibility (active Premium, still favorited) is checked by **CP at display time** (CP-EVENT-U02). PP does not hold membership data.
 - **CP Modular Monolith Integration (`PartnerIntegrationModule` → `EventModule`):** CP's dedicated Kafka consumer (`cp-event-notification-consumer`) receives `PP-OP-13` on `rs.event.notification.v1`, invokes `IEventExternalService` (`EventNotificationExternalDto`) to verify active Premium membership and favorite status, persists the notification, pushes it in real time to the customer's browser, and exposes it via `GET /api/v1/customer/notifications/events` and `PATCH /api/v1/customer/notifications/events/{notificationId}/read`.

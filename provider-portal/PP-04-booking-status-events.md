@@ -114,7 +114,7 @@ At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recover
   }
 }
 ```
-*(The `booking` objects are abridged above for readability. Real events always carry the full `BookingSummary`.)*
+*(The `booking` objects, and the `emailData` of the `BOOKING_CANCELLED` example, are abridged above for readability. Real events always carry the full `BookingSummary`, and `BOOKING_CONFIRMED` / `BOOKING_CANCELLED` always carry `emailData`.)*
 
 ### Kafka envelope (Ultimo)
 

@@ -70,16 +70,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -135,6 +138,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - name: include
         in: query
         required: false
@@ -166,16 +170,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -254,6 +261,98 @@ paths:
                         selectedCount: 0
                         denominator: 0
                         percentage: 0.0
+                    - subcategory: FRIENDLINESS
+                      average: 4.2
+                      count: 5
+                      distribution:
+                        '1': 0
+                        '2': 0
+                        '3': 1
+                        '4': 2
+                        '5': 2
+                      presetOptions:
+                      - optionId: FRD-45-A
+                        starGroup: FOUR_TO_FIVE
+                        label: Staff were warm and welcoming
+                        selectedCount: 3
+                        denominator: 4
+                        percentage: 75.0
+                      - optionId: FRD-45-B
+                        starGroup: FOUR_TO_FIVE
+                        label: Hosts went above and beyond to help
+                        selectedCount: 2
+                        denominator: 4
+                        percentage: 50.0
+                      - optionId: FRD-3-A
+                        starGroup: THREE
+                        label: Staff were polite but distant
+                        selectedCount: 0
+                        denominator: 1
+                        percentage: 0.0
+                      - optionId: FRD-3-B
+                        starGroup: THREE
+                        label: Check-in greeting was average
+                        selectedCount: 1
+                        denominator: 1
+                        percentage: 100.0
+                      - optionId: FRD-12-A
+                        starGroup: ONE_TO_TWO
+                        label: Staff attitude was rude or unhelpful
+                        selectedCount: 0
+                        denominator: 0
+                        percentage: 0.0
+                      - optionId: FRD-12-B
+                        starGroup: ONE_TO_TWO
+                        label: Communication with reception was difficult
+                        selectedCount: 0
+                        denominator: 0
+                        percentage: 0.0
+                    - subcategory: ROOM
+                      average: 4.2
+                      count: 5
+                      distribution:
+                        '1': 0
+                        '2': 0
+                        '3': 1
+                        '4': 2
+                        '5': 2
+                      presetOptions:
+                      - optionId: RM-45-A
+                        starGroup: FOUR_TO_FIVE
+                        label: Room was spotless and comfortable
+                        selectedCount: 3
+                        denominator: 4
+                        percentage: 75.0
+                      - optionId: RM-45-B
+                        starGroup: FOUR_TO_FIVE
+                        label: Amenities and bed quality matched the photos
+                        selectedCount: 2
+                        denominator: 4
+                        percentage: 50.0
+                      - optionId: RM-3-A
+                        starGroup: THREE
+                        label: Room was clean but slightly dated
+                        selectedCount: 0
+                        denominator: 1
+                        percentage: 0.0
+                      - optionId: RM-3-B
+                        starGroup: THREE
+                        label: Noise isolation could be improved
+                        selectedCount: 1
+                        denominator: 1
+                        percentage: 100.0
+                      - optionId: RM-12-A
+                        starGroup: ONE_TO_TWO
+                        label: Room cleanliness was below expectations
+                        selectedCount: 0
+                        denominator: 0
+                        percentage: 0.0
+                      - optionId: RM-12-B
+                        starGroup: ONE_TO_TWO
+                        label: Listed amenities were broken or missing
+                        selectedCount: 0
+                        denominator: 0
+                        percentage: 0.0
                     comments:
                       items:
                       - reviewId: a1b2c3d4-0000-4000-8000-000000000601
@@ -299,6 +398,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       responses:
         '200':
           description: Membership.
@@ -308,16 +408,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -365,7 +468,7 @@ paths:
       operationId: updateSimulatedOrder
       summary: CP-OP-03 Complete or cancel simulated order
       description: |-
-        Simplex only. PP completes or cancels the simulated order issued by CP.
+        Simplex only. PP completes or cancels the simulated order issued by CP. ISSUED may become COMPLETED or CANCELLED; COMPLETED may become CANCELLED for a subsequent booking cancellation. A matching repeat is idempotent; CANCELLED cannot become COMPLETED and the booking binding cannot change.
 
         **SRS traceability:** PP-MONEY-S01; CP-MONEY-S01
       x-contract-id: CP-OP-03
@@ -380,6 +483,7 @@ paths:
         schema:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
@@ -401,16 +505,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -447,23 +554,26 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
         '409':
-          description: Order already final with a different action.
+          description: Order state or idempotency conflict.
           headers:
             X-Request-Id:
               description: Echo of the request header
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
           content:
             application/json:
               schema:
@@ -474,6 +584,13 @@ paths:
                     error:
                       code: STATE_CONFLICT
                       message: The order is already CANCELLED.
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                idempotency:
+                  value:
+                    error:
+                      code: IDEMPOTENCY_CONFLICT
+                      message: This Idempotency-Key was already used with a different request body.
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
       security:
@@ -580,16 +697,19 @@ paths:
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Correlation-Id:
               description: Echo of this logical operation's correlation ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-Trace-Id:
               description: Echo of the business-flow trace ID
               schema:
                 type: string
                 format: uuid
+                pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
             X-RateLimit-Limit:
               description: Requests allowed in the window
               schema:
@@ -616,6 +736,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '429':
           $ref: '#/components/responses/TooManyRequests'
         '503':
@@ -635,6 +757,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     XCorrelationId:
       name: X-Correlation-Id
       in: header
@@ -643,6 +766,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     XTraceId:
       name: X-Trace-Id
       in: header
@@ -651,6 +775,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -660,6 +785,7 @@ components:
       schema:
         type: string
         format: uuid
+        pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
   responses:
     BadRequest:
       description: Malformed or missing fields.
@@ -669,16 +795,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -702,16 +831,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -732,16 +864,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -762,16 +897,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       content:
         application/json:
           schema:
@@ -792,16 +930,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         Retry-After:
           description: Seconds before retrying
           schema:
@@ -827,16 +968,19 @@ components:
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Correlation-Id:
           description: Echo of this logical operation's correlation ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         X-Trace-Id:
           description: Echo of the business-flow trace ID
           schema:
             type: string
             format: uuid
+            pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         Retry-After:
           description: Seconds before retrying
           schema:
@@ -956,6 +1100,7 @@ components:
         discountPackageId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         name:
           type: string
         type:
@@ -973,6 +1118,17 @@ components:
       - type
       - value
       - amount
+      oneOf:
+      - properties:
+          type:
+            enum:
+            - PERCENTAGE
+          value:
+            maximum: 100
+      - properties:
+          type:
+            enum:
+            - FIXED_PER_NIGHT
     PriceBreakdown:
       type: object
       description: Price calculated by PP (Decision D-06).
@@ -1019,6 +1175,7 @@ components:
           type: string
           description: Original CP order ID; retained for reconciliation
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         originalPaymentReference:
           type: string
           description: Preserved after cancellation (PP-MONEY-M03)
@@ -1057,18 +1214,79 @@ components:
             mode:
               enum:
               - SIMULATED
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+          not:
+            anyOf:
+            - required:
+              - originalPaymentReference
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
+            - required:
+              - returnPaymentReference
         - properties:
             mode:
               enum:
               - DIRECT
           required:
           - originalPaymentReference
+          not:
+            anyOf:
+            - required:
+              - escrowStatus
+            - required:
+              - releaseReference
         - properties:
             mode:
               enum:
               - ESCROW
           required:
           - originalPaymentReference
+          - escrowStatus
+      - oneOf:
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - returnPaymentReference
+        - properties:
+            returnPaymentStatus:
+              enum:
+              - NOT_REQUIRED
+              - PENDING
+              - FAILED
+      - oneOf:
+        - not:
+            anyOf:
+            - required:
+              - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - RELEASED
+          required:
+          - escrowStatus
+          - releaseReference
+        - properties:
+            escrowStatus:
+              enum:
+              - REFUNDED
+            returnPaymentStatus:
+              enum:
+              - SUCCEEDED
+          required:
+          - escrowStatus
+        - properties:
+            escrowStatus:
+              enum:
+              - HELD
+              - RELEASE_PENDING
+              - RELEASE_FAILED
+          required:
           - escrowStatus
       - oneOf:
         - not:
@@ -1130,6 +1348,7 @@ components:
         cancelledAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - cancelledBy
       - cancelledAt
@@ -1141,6 +1360,7 @@ components:
           type: string
           description: PP booking reference
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         bookingCode:
           type: string
           description: Short human-readable code
@@ -1150,15 +1370,19 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         branchId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         roomId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         providerName:
           type: string
         branchName:
@@ -1191,9 +1415,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - bookingId
       - bookingCode
@@ -1214,6 +1440,23 @@ components:
       - payment
       - createdAt
       - updatedAt
+      oneOf:
+      - properties:
+          status:
+            enum:
+            - CANCELLED
+        required:
+        - cancellation
+      - properties:
+          status:
+            enum:
+            - PENDING_APPROVAL
+            - CONFIRMED
+            - COMPLETED
+        not:
+          anyOf:
+          - required:
+            - cancellation
     ErrorDetail:
       type: object
       properties:
@@ -1257,6 +1500,7 @@ components:
             timestamp:
               type: string
               format: date-time
+              pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
           required:
           - code
           - message
@@ -1316,6 +1560,7 @@ components:
         reviewId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         overallScore:
           type: integer
           minimum: 1
@@ -1325,9 +1570,11 @@ components:
         createdAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - reviewId
       - overallScore
@@ -1346,8 +1593,9 @@ components:
           type: string
         branchPhone:
           type: string
-          description: 'E.164: ''+'' and the international dialing code, followed by fewer than 13 digits (PP-REG-M03, CP-REG-M03)'
-          pattern: ^\+[1-9][0-9]{1,15}$
+          description: E.164, at most 15 digits in total. Backend validates the assigned calling code and fewer than 13 digits
+            after that code (PP-REG-M03, CP-REG-M03).
+          pattern: ^\+[1-9][0-9]{1,14}$
         roomName:
           type: string
         checkInDate:
@@ -1393,6 +1641,7 @@ components:
           type: string
           description: CP de-duplicates on this
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         eventType:
           type: string
           enum:
@@ -1405,6 +1654,7 @@ components:
         occurredAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         sequence:
           type: integer
           description: Increases per bookingId; CP ignores lower sequences
@@ -1424,12 +1674,53 @@ components:
       - occurredAt
       - sequence
       - booking
+      oneOf:
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_CONFIRMED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - CONFIRMED
+        required:
+        - emailData
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_CANCELLED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - CANCELLED
+        required:
+        - emailData
+      - properties:
+          eventType:
+            enum:
+            - BOOKING_COMPLETED
+          booking:
+            type: object
+            properties:
+              status:
+                enum:
+                - COMPLETED
+      - properties:
+          eventType:
+            enum:
+            - RETURN_PAYMENT_UPDATED
+            - ESCROW_RELEASE_UPDATED
     BookingEventAck:
       type: object
       properties:
         eventId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         accepted:
           type: boolean
         duplicate:
@@ -1550,9 +1841,11 @@ components:
         providerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         asOf:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         totalReviews:
           type: integer
           description: Active (non-archived) reviews
@@ -1577,6 +1870,7 @@ components:
         customerId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         tier:
           $ref: '#/components/schemas/MembershipTier'
         status:
@@ -1584,13 +1878,40 @@ components:
         validFrom:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
         validUntil:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - customerId
       - tier
       - status
+      oneOf:
+      - properties:
+          tier:
+            enum:
+            - STANDARD
+          status:
+            enum:
+            - NONE
+        not:
+          anyOf:
+          - required:
+            - validFrom
+          - required:
+            - validUntil
+      - properties:
+          tier:
+            enum:
+            - PREMIUM
+          status:
+            enum:
+            - ACTIVE
+            - EXPIRED
+        required:
+        - validFrom
+        - validUntil
     UpdateOrderRequest:
       type: object
       properties:
@@ -1603,6 +1924,7 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         reason:
           type: string
           maxLength: 500
@@ -1615,6 +1937,7 @@ components:
         orderId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         status:
           type: string
           enum:
@@ -1625,9 +1948,11 @@ components:
         bookingId:
           type: string
           format: uuid
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
         updatedAt:
           type: string
           format: date-time
+          pattern: ^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$
       required:
       - orderId
       - status
@@ -1639,8 +1964,8 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: Custom JSON partner-token issuance at POST /api/v1/partner/auth/token (INT-M03), not an OAuth2 token endpoint.
-        The signed JWS identifies a subsystem. The gateway enforces each operation's x-required-scopes. End-user JWE tokens
-        are never forwarded.
+        The signed JWS identifies a subsystem. PP's gateway or CP's security filter enforces each operation's x-required-scopes.
+        End-user JWE tokens are never forwarded.
       x-granted-scopes:
         rating:read: CP-OP-01
         membership:read: CP-OP-02

@@ -2,6 +2,24 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
+## [Unreleased] - 2026-11-24 (requirements and validation follow-up)
+
+Reviewed both partner APIs and the Kafka contract against the supplied CP SRS, PP SRS, Common Requirements and lecturer-answer summary. Architecture choices remain CP Ultimo frontend + Medium modular monolith backend; PP Ultimo frontend + Ultimo microservices backend.
+
+### Fixed
+- Replaced unavailable/incompatible validation dependency pins with versions installable on Python 3.9+. Extended checks to Markdown JSON and complete Kafka examples, price arithmetic, required authorization/write-conflict responses and malformed business outcomes.
+- Corrected the Markdown rating request's overall deadline from 5 to 20 seconds. Cached Kafka outcomes are re-enveloped for the current attempt; shared response state now supports a waiter on another replica.
+- Aligned missing REST errors: PP booking membership-verification failure and booking-list cursor failure, CP webhook scope failure and simulated-order idempotency conflict. Clarified that a completed simulated order can be cancelled with its booking.
+- Allowed an absent rating summary when CP is unavailable and no cached result exists, rather than requiring invented statistics. Corrected CP group pagination and required eligibility re-verification when a review is created.
+- Enforced documented lowercase UUID v4 and UTC timestamp conventions, E.164's 15-digit ceiling, paired stay-query dates, Premium subscription dates/status, percentage limits, cancellation details, event state/email data, successful return references and release references. SSO email snapshots remain compatible with the registration exemption.
+- Restored the missing discount snapshot in the Markdown booking-list example. Completed machine-readable rating examples with all three subcategories and corrected booking request/result example timing and error-attempt identity.
+- Made top-two event suggestions select distinct providers. Scheduled notification publication uses a transactional outbox to survive crashes.
+- Corrected the proposed PMS routing so CP connects directly, and marked PMS room-copy storage as a proposal. The separate cross-squad contract remains incomplete and unsigned.
+
+### Compatibility and outstanding decisions
+- These unsigned draft corrections tighten validation and make `ProviderSearchResult.ratingSummary` optional. Consumers must handle its absence. No path or topic was renamed. Both teams must review this revised baseline before adoption.
+- Do not claim complete PMS coverage or lecturer resolution of escrow scope/two-month timing. Those decisions remain explicitly open; runtime behavior must be tested in the portal repositories.
+
 ## [Unreleased] - 2026-11-24 (CP–PP consistency audit)
 
 Principle: PP is the reference. Where the two sides differed, CP was aligned to PP; PP files changed only to copy codes already in PP's own OpenAPI into its Markdown and to fix one example country.

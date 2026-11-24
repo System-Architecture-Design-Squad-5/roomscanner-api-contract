@@ -157,7 +157,7 @@ The unit of a search result is a **branch** (one property at one address) of a p
 | amenities | Amenity[] | yes | Union of the amenities across active rooms |
 | availableRoomCount | integer | yes | Sum of available quantity for the requested dates (0 if none) |
 | lowestPricePerNight | Money | yes | Lowest base price across matching rooms |
-| ratingSummary | RatingSummary | yes | |
+| ratingSummary | RatingSummary | no | Omitted when CP is unavailable and no cached statistics exist; never substitute zero reviews. |
 | matchedFields | string[] | no | Medium FTS: which fields matched, e.g. `["providerName","category"]` |
 | relevanceScore | number | no | Medium FTS rank, 0-1 |
 
@@ -233,7 +233,7 @@ Everything in `RoomSummary`, plus:
 |---|---|---|---|
 | tier | MembershipTier | yes | |
 | status | MembershipStatus | yes | |
-| validUntil | string | no | UTC timestamp, present when `PREMIUM` |
+| validUntil | string | for `PREMIUM` | UTC timestamp; absent for `STANDARD`. `STANDARD` uses status `NONE`; `PREMIUM` uses `ACTIVE` or `EXPIRED`. |
 
 ### PaymentInfo (sent by CP with CreateBooking)
 | Field | Type | Required | Notes |
@@ -262,7 +262,7 @@ The schemas enforce the payment-mode combinations: SIMULATED uses gateway `NONE`
 | quantity / adults / children | integer | yes | |
 | priceBreakdown | PriceBreakdown | yes | |
 | payment | BookingPaymentStatus | yes | |
-| cancellation | CancellationInfo | no | Present when `CANCELLED` |
+| cancellation | CancellationInfo | when `CANCELLED` | Required for cancelled bookings; absent for all other statuses. |
 | createdAt / updatedAt | string | yes | |
 
 ### BookingPaymentStatus
@@ -272,13 +272,15 @@ The schemas enforce the payment-mode combinations: SIMULATED uses gateway `NONE`
 | orderId | string (uuid) | no | Original CP order ID retained for reconciliation |
 | originalPaymentReference | string | DIRECT/ESCROW | Preserved after cancellation (PP-MONEY-M03) |
 | escrowStatus | EscrowReleaseStatus | ESCROW | |
-| releaseReference | string | no | Stripe Transfer ID once released |
+| releaseReference | string | when `escrowStatus=RELEASED` | Stripe Transfer ID once released; preserved after reversal/refund. |
 | transferReversalStatus | TransferReversalStatus | when reversal is attempted | Separate transfer recovery outcome; absent means not required |
 | transferReversalReference | string | on successful reversal | Stripe TransferReversal ID (`trr_...`), retained after refund |
 | transferReversalFailureCause | string | on failed reversal | Gateway cause of transfer recovery failure; kept distinct from the customer refund cause |
 | returnPaymentStatus | ReturnPaymentStatus | yes | |
-| returnPaymentReference | string | no | PayPal payout batch/item ID, or Stripe Refund ID. Kept separate from the original. |
+| returnPaymentReference | string | when return succeeds | PayPal payout batch/item ID, or Stripe Refund ID. May also be present while pending/failed; kept separate from the original. |
 | failureCause | string | no | Gateway's failure reason when available |
+
+`SIMULATED` always uses `returnPaymentStatus=NOT_REQUIRED` with no real gateway references. `DIRECT` has no escrow/release fields. `REFUNDED` means the customer return actually succeeded, not merely that a transfer was reversed.
 
 ### CancellationInfo
 | Field | Type | Required | Notes |
@@ -293,7 +295,7 @@ The schemas enforce the payment-mode combinations: SIMULATED uses gateway `NONE`
 | customerId | string | yes | CP application user ID |
 | tier | MembershipTier | yes | `STANDARD` or `PREMIUM` |
 | status | MembershipStatus | yes | `ACTIVE`, `EXPIRED`, or `NONE` |
-| validFrom / validUntil | string | no | UTC timestamp; present when `tier = PREMIUM` (active or expired) |
+| validFrom / validUntil | string | for `PREMIUM` | UTC timestamp; absent for `STANDARD`. `STANDARD` uses status `NONE`; `PREMIUM` uses `ACTIVE` or `EXPIRED`. |
 
 ### EventInfo (owned by CP, sent in `CP-OP-05` and echoed in `PP-OP-12`, `PP-OP-13`)
 | Field | Type | Required | Notes |

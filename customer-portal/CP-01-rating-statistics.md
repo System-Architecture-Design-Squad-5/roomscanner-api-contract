@@ -24,6 +24,8 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
 | `commentsLimit` | integer | no | `1–50`, default `10` |
 | `commentsCursor` | string | no | Opaque cursor for comment pagination |
 
+`overall` and `totalReviews` are always returned. `PRESET_OPTIONS` implies `SUBCATEGORIES`; requesting subcategories returns all three named subcategories. Without `PRESET_OPTIONS`, their `presetOptions` arrays are empty. `COMMENTS` includes the requested comment page; omit `comments` otherwise. Averages are omitted when the corresponding count is zero. The response example below shows only the Service entry to keep it readable; real requests for subcategories return Service, Friendliness and Room.
+
 **Request (REST)**
 
 `GET {CP}/api/v1/partner/providers/5b1c2d3e-0000-4000-8000-000000000150/rating-statistics?include=OVERALL&include=SUBCATEGORIES&include=PRESET_OPTIONS&include=COMMENTS&commentsLimit=10`
@@ -40,7 +42,7 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
   "source": "PP",
   "replyTo": "rs.rating-stats.response.v1",
   "attempt": 1,
-  "deadline": "2026-12-01T04:00:05Z",
+  "deadline": "2026-12-01T04:00:20Z",
   "timestamp": "2026-12-01T04:00:00Z",
   "payload": {
     "providerId": "5b1c2d3e-0000-4000-8000-000000000150",

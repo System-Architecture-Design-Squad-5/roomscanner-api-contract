@@ -340,7 +340,7 @@ Kafka messages use the same envelope as PP-OP-01 (`common/04-kafka.md`), with a 
 }
 ```
  
-If CP-OP-01 is unavailable, PP still answers `200`: `latestComments` is empty and `ratingSummary` carries the last cached value (D-11).
+If CP-OP-01 is unavailable, PP still answers `200`: `latestComments` is empty and `ratingSummary` carries the last cached value (D-11). If no cached statistics exist, omit `ratingSummary` and display "Rating temporarily unavailable". A missing summary must not be interpreted as zero reviews.
  
 ---
  

@@ -4,7 +4,7 @@ This file implements **inter-subsystem** Kafka communication: `INT-U01` (service
 
 ## 1. Message envelope
 
-Every Kafka message value is a JSON envelope. The `payload` is exactly the REST request or response body of the operation.
+Every Kafka message value is a JSON envelope. The `payload` uses the REST operation's fields and types. For requests, merge path identifiers, query parameters and any JSON body into one object (for example, `CANCEL_BOOKING` adds the REST path's `bookingId` to `CancelBookingRequest`). Success payloads equal the REST response body; Kafka errors additionally require `error.httpStatus`.
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
@@ -119,11 +119,11 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 
 ## 3. Request/response correlation (INT-U02)
 
-1. The requester generates a fresh `correlationId` for this logical operation and retains the business `traceId`. It stores `pending:{source}:{type}:{correlationId}` in Redis with `{expectedResponseType, traceId, idempotencyKey?, attempt, deadline, originalPayload}`. Expire the entry at the absolute deadline + 60 s (`EXPIREAT`, or an equivalent relative duration).
+1. The requester generates a fresh `correlationId` for this logical operation and retains the business `traceId`. It stores `pending:{source}:{type}:{correlationId}` in Redis with `{expectedResponseType, traceId, idempotencyKey?, attempt, deadline, originalPayload, waiterInstanceId}`. Expire the entry at the absolute deadline + 60 s (`EXPIREAT`, or an equivalent relative duration).
 2. It produces to the request topic, with `replyTo` set to the paired response topic.
 3. The responder validates the authenticated producer, message type and paired `replyTo`, then returns the **same** `correlationId` and `traceId`. `causationId` identifies the transport attempt that caused this response.
 4. The requester's **dedicated response consumer** resolves the expected request type and looks up `pending:{source}:{type}:{correlationId}`. It verifies response type, producer and trace before applying it:
-   - found and still waiting → complete the waiting call (the REST call from the frontend is answered, or the frontend is pushed via WebSocket) and delete the key.
+   - found and still waiting → persist the result in the shared pending record and notify `waiterInstanceId`. Any reply consumer may receive the response, so the owning HTTP instance must also be able to read that stored result if a notification is missed. Delete the key after the waiter consumes the result, or let its TTL expire.
    - not found (late duplicate) → log it and ignore it.
 5. A successful business result returns `status: OK`. A business rejection, including a validation error, returns `status: ERROR`. Infrastructure failures can cause a timeout. Late results are retained/reconciled by business identity; an expired HTTP waiter does not undo a committed booking.
 
@@ -138,7 +138,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 | `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s | 12 s |
 
 - A resend keeps the **same `correlationId`**, gets a **new `messageId`**, and increments `attempt`.
-- **Idempotent responders:** The responder stores `processed:{type}:{correlationId}` → response in Redis for 24 h. A duplicate request gets the **cached response** again, with no second booking and no second cancellation.
+- **Idempotent responders:** The responder caches the business outcome under `processed:{source}:{type}:{correlationId}` for 24 h. A duplicate gets that outcome in a fresh response envelope: new `messageId` and `timestamp`, `causationId` set to the current attempt's `messageId`, and the request's `correlationId` and `traceId`. For errors, `error.requestId` also identifies the current attempt. Do not replay an old transport envelope. Write outcomes are additionally replayed by authenticated partner + operation + `idempotencyKey`; changed input returns `IDEMPOTENCY_CONFLICT`. Durable quote/order/payment uniqueness and terminal rejections survive Redis expiry (PP-03).
 - After the last attempt fails, the requester returns `503 SERVICE_UNAVAILABLE` to its own frontend (a controlled failure; on CP's `/api/v1/customer/*` endpoints this is translated into CP's 4-field `"error"` payload with `errorCode: "SERVICE_UNAVAILABLE"` and `validInputExample: null`, see `01-conventions.md` §5.2). For rating statistics, PP shows the last cached statistics marked "stale", or "temporarily unavailable".
 - A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
 

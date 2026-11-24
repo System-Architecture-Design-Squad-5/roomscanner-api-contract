@@ -37,8 +37,8 @@ Frontends never call the partner subsystem directly; each frontend talks only to
 | Timestamps | ISO-8601 UTC with `Z` (optional `.SSS` milliseconds accepted by both subsystems) | `"2026-11-20T11:00:00Z"` or `"2027-02-15T10:00:00.000Z"` |
 | Money | `Money` object, amount in **minor units** (integer), ISO-4217 currency. This avoids floating-point rounding. | `{ "amountMinor": 9000, "currency": "USD" }` = USD 90.00 |
 | Country | ISO 3166-1 alpha-2 | `"VN"` |
-| Email | `local-part@domain`, `< 255` characters, single `@`, domain has at least one `.`; only alphanumeric, `-`, and `_` in local and domain parts (PP-REG-M02, CP-REG-M02) | `"customer@example.com"` |
-| Phone | E.164: `+` dialing code, then fewer than 13 digits (PP-REG-M03, CP-REG-M03) | `"+84901234567"` |
+| Email | Partner snapshots use an email string. For **local registration**, additionally enforce `< 255` characters, one `@`, alphanumeric/`-`/`_` local part and dot-separated domain labels with at least one dot (PP-REG-M02, CP-REG-M02). SSO registration is exempt from that local validation, so PP must accept CP's SSO-provided addresses, including dotted local parts. | `"customer@example.com"` |
+| Phone | E.164: `+`, an assigned international calling code, then fewer than 13 subscriber digits; at most 15 digits total. Schema checks syntax; backend checks the calling code and subscriber length (PP-REG-M03, CP-REG-M03). | `"+84901234567"` |
 | Enums | `UPPER_SNAKE_CASE`, defined in `02-shared-types.md` | `"PENDING_APPROVAL"` |
 | Nulls | Omit optional fields that have no value. Never send `""` to mean "none". | |
 
@@ -50,7 +50,7 @@ Frontends never call the partner subsystem directly; each frontend talks only to
 | `X-Request-Id` | request/response | yes | UUID per HTTP call. The server echoes it. |
 | `X-Correlation-Id` (or `X-Correlation-ID`) | request/response | yes | UUID for **one logical operation**; reused only for that operation's transport retries and its response. Maps to Kafka `correlationId` (`04-kafka.md` §1). HTTP header matching is case-insensitive. |
 | `X-Trace-Id` | request/response | yes | UUID shared by every call in one **business flow** (e.g. quote → booking → events). Maps to Kafka `traceId`. Never used for correlation or de-duplication. |
-| `Idempotency-Key` | request | yes on `POST` that creates or cancels | UUID scoped to the authenticated partner and operation. A retry with the same key returns the **original** result without a second side effect. Replay responses are cached for 24 h in Redis; booking/order/payment uniqueness is durable and outlives the cache (PP-03). Maps to Kafka `idempotencyKey`. |
+| `Idempotency-Key` | request | PP-OP-05/06/09 and CP-OP-03 | UUID scoped to the authenticated partner and operation. A retry with the same key returns the **original** business result without a second side effect; response headers echo the current call's IDs. Replay responses are cached for 24 h in Redis; booking/order/payment uniqueness is durable and outlives the cache (PP-03). Maps to Kafka `idempotencyKey` for Kafka writes. Webhooks deduplicate on `eventId`; Simplex suggestions use `requestId`. |
 | `X-RS-Signature` | webhook request | Medium+ | HMAC signature for PP → CP webhooks (§4.3) |
 | `X-RateLimit-Limit` / `-Remaining` / `-Reset` | response | yes | Rate-limit status (§7) |
 | `Retry-After` | response | on 429/503 | Seconds before the client should retry |
@@ -61,7 +61,7 @@ Frontends never call the partner subsystem directly; each frontend talks only to
 
 Each subsystem issues tokens for its own partner API. The calling subsystem exchanges a **client ID and secret** (shared out-of-band, held in environment variables and never committed) for a short-lived token.
 
-This is a **custom JSON token endpoint**, using the camelCase fields below. It is not an OAuth2 token endpoint: no OAuth2 `grant_type`, form encoding, or automatic OAuth2 authorization flow is advertised. OpenAPI declares `partnerBearer` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). Each operation's `x-required-scopes` extension records the scopes enforced by the gateway. Bearer security requirements use an empty scope array in OpenAPI; the custom extension and the scope table below define authorization.
+This is a **custom JSON token endpoint**, using the camelCase fields below. It is not an OAuth2 token endpoint: no OAuth2 `grant_type`, form encoding, or automatic OAuth2 authorization flow is advertised. OpenAPI declares `partnerBearer` (`type: http`, `scheme: bearer`, `bearerFormat: JWT`). Each operation's `x-required-scopes` extension records the scopes enforced by PP's gateway or CP's cross-cutting security filter. Bearer security requirements use an empty scope array in OpenAPI; the custom extension and the scope table below define authorization.
 
 **`POST /api/v1/partner/auth/token`**
 
@@ -87,7 +87,7 @@ Response `200`:
 ```json
 {
   "clientId": "cp-subsystem",
-  "clientSecret": "<from env>",
+  "clientSecret": "replace-with-secret-from-environment-0123456789",
   "scope": [
     "search:read",
     "booking:write"

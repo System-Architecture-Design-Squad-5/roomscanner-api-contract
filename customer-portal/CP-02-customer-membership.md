@@ -39,6 +39,8 @@ Customer Portal is the authoritative owner of customer accounts and \$100/year P
 | `status` | MembershipStatus | `ACTIVE`, `EXPIRED`, or `NONE` |
 | `validFrom` / `validUntil` | string | UTC. Present for `PREMIUM` (active or expired). |
 
+`STANDARD` pairs with `NONE` and omits subscription dates. `PREMIUM` pairs with `ACTIVE` or `EXPIRED` and includes both dates. Expiry never grants Premium entitlement.
+
 **Response (REST `200`)**
 
 ```json
