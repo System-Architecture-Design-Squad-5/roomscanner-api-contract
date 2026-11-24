@@ -4,7 +4,7 @@
 
 **Owner:** Customer Portal · **Consumer:** Provider Portal
 
-Customer Portal implements these partner-facing services inside its **Modular Monolith** (`PartnerIntegrationModule` -> external service interfaces `IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
+Customer Portal implements these partner-facing services inside its **Modular Monolith** (`PartnerIntegrationModule` -> external service interfaces `IRatingExternalService`, `IMembershipExternalService`, `IEventExternalService`, `IBookingExternalService`).
 
 ---
 

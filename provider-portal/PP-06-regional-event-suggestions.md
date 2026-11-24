@@ -289,4 +289,14 @@ Event start: **12 Apr 2027** → window start **11 Feb 2027** (D-12).
 - Schedules are persisted in PP's DB, so they survive restarts. A scheduler runs every minute with a distributed lock. In one database transaction it inserts a due notification into the outbox and marks the schedule `PUBLISHED`; the outbox relay retries Kafka publication until acknowledged. A crash between publication and acknowledgement may cause redelivery with the same `notificationId`.
 - The CP consumer is idempotent on `notificationId`. PP never creates another business notification for a `PUBLISHED` schedule; transport retries retain its identity. Re-favoriting creates a new `favoriteId` and a new schedule.
 - Eligibility (active Premium, still favorited) is checked by **CP at display time** (CP-EVENT-U02). PP does not hold membership data.
+- **Handling CP-OP-05 change types (D-12):**
+
+| `changeType` | PP action |
+|---|---|
+| `FAVORITE_ADDED` | Compute `notificationWindowStart`; publish now or persist a `SCHEDULED` row |
+| `FAVORITE_REMOVED` | Mark that favorite's `SCHEDULED` row `CANCELLED` (no-op if already `PUBLISHED`) |
+| `EVENT_DATES_CHANGED` | Recompute every `SCHEDULED` row for the `eventId`; publish now any that fall inside the new window. `PUBLISHED` rows are not re-sent |
+| `EVENT_DELETED` | Mark every `SCHEDULED` row for the `eventId` `CANCELLED`; ignore later `FAVORITE_ADDED` for that event |
+
+  Messages are keyed by `eventId`, so one partition preserves their order per event; PP is idempotent on `messageId`.
 - **CP Modular Monolith Integration (`PartnerIntegrationModule` → `EventModule`):** CP's dedicated Kafka consumer (`cp-event-notification-consumer`) receives `PP-OP-13` on `rs.event.notification.v1`, invokes `IEventExternalService` (`EventNotificationExternalDto`) to verify active Premium membership and favorite status, persists the notification, pushes it in real time to the customer's browser, and exposes it via `GET /api/v1/customer/notifications/events` and `PATCH /api/v1/customer/notifications/events/{notificationId}/read`.

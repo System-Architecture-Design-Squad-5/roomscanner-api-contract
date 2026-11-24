@@ -24,7 +24,7 @@ Partner-facing APIs are kept separate from frontend-facing APIs (such as CP's `/
 Frontends never call the partner subsystem directly; each frontend talks only to its own backend, and backends talk to each other through this contract.
 
 - **Provider Portal (PP)** uses a **Microservices** architecture (`BE-U01`–`BE-U09`). Its API Gateway resolves partner routes through **service discovery** (`BE-U05`, `BE-U06`), keeping the redundant booking service (`PP-BOOK-U01`) transparent to CP.
-- **Customer Portal (CP)** uses a **Modular Monolith** architecture (`BE-M01`–`BE-M08`). Partner authentication, rate limiting, and webhook verification are enforced in CP's shared cross-cutting security/filter layer, outside the business modules, and requests are handled by `PartnerIntegrationModule` and dispatched in-process via external service interfaces (`IRatingExternalService`, `IEventExternalService`, `IBookingExternalService`).
+- **Customer Portal (CP)** uses a **Modular Monolith** architecture (`BE-M01`–`BE-M08`). Partner authentication, rate limiting, and webhook verification are enforced in CP's shared cross-cutting security/filter layer, outside the business modules, and requests are handled by `PartnerIntegrationModule` and dispatched in-process via external service interfaces (`IRatingExternalService`, `IMembershipExternalService`, `IEventExternalService`, `IBookingExternalService`).
 
 ## 2. Data formats
 
@@ -145,7 +145,10 @@ Every non-2xx response, and every Kafka response whose `status` is `ERROR`, uses
 | error.message | string | Human-readable message, safe to show to end users |
 | error.details | object[] | Optional. Field-level problems: `{ "field": string, "issue": string }` |
 | error.httpStatus | integer | Kafka responses only: the equivalent HTTP status (omitted on REST, where the status line carries it) |
-| error.refundRequiredByPayer | boolean | PP-OP-06 only: `true` when CP must refund a payment it already captured (D-14) |
+| error.refundRequiredByPayer | boolean | PP-OP-06 only: `true` when CP must refund a payment it already captured (Ultimo `ESCROW`, D-14) |
+| error.refundIssuedByBeneficiary | boolean | PP-OP-06 only, Medium `DIRECT`: `true` when PP has refunded the unbound capture from the provider's merchant account (D-14) |
+| error.returnPaymentReference | string | With `refundIssuedByBeneficiary=true`: the PayPal refund ID |
+| error.returnPaymentStatus | ReturnPaymentStatus | With `refundIssuedByBeneficiary=true`: `PENDING`, `SUCCEEDED` or `FAILED` |
 | error.requestId | string | Echo of `X-Request-Id` / Kafka `messageId` |
 | error.timestamp | string | UTC timestamp |
 
@@ -194,7 +197,7 @@ List operations use **cursor pagination**, so infinite scroll stays stable while
 | Query param | Type | Default | Notes |
 |---|---|---|---|
 | limit | integer | 10 | 1-50 |
-| cursor | string | N/A | Opaque value from the previous `pageInfo.nextCursor` |
+| cursor | string | N/A | Opaque value from the previous `pageInfo.nextCursor`. Cursors expire after **30 minutes**; an expired or tampered cursor returns `400 INVALID_CURSOR` and the client restarts from the first page. |
 
 Response wrapper:
 

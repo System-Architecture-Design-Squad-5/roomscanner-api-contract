@@ -200,6 +200,18 @@ class ContractValidation(unittest.TestCase):
         data["payload"]["changeType"] = "EVENT_DATES_CHANGED"
         self.assert_invalid("EventFavoriteChanged", data)
 
+    def test_medium_beneficiary_refund_is_exclusive_and_referenced(self):
+        doc = DOCS[FILES[0]]
+        check = validator(doc, doc["components"]["schemas"]["Error"])
+        base = {"code": "QUOTE_EXPIRED", "message": "m", "requestId": "r", "timestamp": "2026-12-01T03:00:01Z"}
+        ok = dict(base, refundRequiredByPayer=False, refundIssuedByBeneficiary=True,
+                  returnPaymentReference="PAYPAL-REFUND-TEST", returnPaymentStatus="SUCCEEDED")
+        self.assertTrue(check.is_valid({"error": ok}))
+        self.assertTrue(check.is_valid({"error": dict(base, refundRequiredByPayer=True)}))
+        self.assertFalse(check.is_valid({"error": dict(ok, refundRequiredByPayer=True)}))
+        missing = dict(ok); del missing["returnPaymentReference"]
+        self.assertFalse(check.is_valid({"error": missing}))
+
     def test_reversal_outcome_requires_reference_or_failure_cause(self):
         schema = ASYNC["components"]["schemas"]["BookingPaymentStatus"]
         sample = copy.deepcopy(example("BookingResponse")["payload"]["payment"])

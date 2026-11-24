@@ -1489,7 +1489,16 @@ components:
               description: 'Kafka responses only: equivalent HTTP status'
             refundRequiredByPayer:
               type: boolean
-              description: 'CreateBooking only: CP must refund a payment it already captured (Decision D-14)'
+              description: 'CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)'
+            refundIssuedByBeneficiary:
+              type: boolean
+              description: 'CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider''s merchant
+                account (Decision D-14)'
+            returnPaymentReference:
+              type: string
+              description: 'With refundIssuedByBeneficiary=true: the gateway refund ID'
+            returnPaymentStatus:
+              $ref: '#/components/schemas/ReturnPaymentStatus'
             availableQuantity:
               type: integer
               description: INSUFFICIENT_AVAILABILITY only
@@ -1506,6 +1515,21 @@ components:
           - message
           - requestId
           - timestamp
+          anyOf:
+          - not:
+              required:
+              - refundIssuedByBeneficiary
+          - properties:
+              refundIssuedByBeneficiary:
+                enum:
+                - false
+          - properties:
+              refundRequiredByPayer:
+                enum:
+                - false
+            required:
+            - returnPaymentReference
+            - returnPaymentStatus
       required:
       - error
     TokenRequest:

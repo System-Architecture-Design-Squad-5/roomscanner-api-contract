@@ -8,7 +8,7 @@ Neither team controls the whole money lifecycle (CP-MONEY-M02(S)): **CP initiate
 > 1. `POST /api/v1/customer/bookings/quotes` → calls `PP-OP-05 CreatePriceQuote` (`quoteId`, `priceBreakdown.total`, `payee`).
 > 2. `POST /api/v1/customer/payments/authorize` → Step 1 Authorize (Stripe `PaymentIntent.create(capture_method=manual)` / PayPal order creation).
 > 3. `POST /api/v1/customer/payments/capture` → Step 2 Capture into escrow (`CAPTURED_HELD` / `CAPTURED`).
-> 4. `POST /api/v1/customer/bookings` → calls `PP-OP-06 CreateBooking` (refunds automatically if `PP-OP-06` fails with `refundRequiredByPayer=true`).
+> 4. `POST /api/v1/customer/bookings` → calls `PP-OP-06 CreateBooking` (at Ultimo CP refunds automatically if `PP-OP-06` fails with `refundRequiredByPayer=true`; at Medium PP has already refunded and sets `refundIssuedByBeneficiary=true`, D-14).
 > 5. `POST /api/v1/customer/bookings/{bookingId}/cancel` → calls `PP-OP-09 CancelBookingByCustomer` (triggers PP Step 5 Refund / PayPal Payout).
 
 ## 1. Simplex: simulated order (no third-party provider)
@@ -32,11 +32,12 @@ CP                                   PP                                   CP
 | 3 | CP | On **failure**: show the exact PayPal error to the customer and send **no** booking (CP-MONEY-M01) | N/A | N/A |
 | 4 | CP | PP-OP-06 with `state=CAPTURED` | N/A | `paymentReference` = capture ID |
 | 5 | PP | Verify the capture (status `COMPLETED`, amount, payee) | `GET /v2/payments/captures/{id}` | N/A |
+| 5a | PP | Booking **terminally rejected** before it exists (D-14): no booking, so this is not a cancellation. PP refunds the unbound capture from the provider's merchant account and replies with `refundIssuedByBeneficiary=true` | `POST /v2/payments/captures/{id}/refund` | `returnPaymentReference` = refund ID, `returnPaymentStatus` |
 | 6 | PP | Receptionist approves → `BOOKING_CONFIRMED`. **No second charge.** | none | N/A |
 | 7 | PP | On cancellation → release the rooms, then make a **separate payout** from the provider to the customer's email | PayPal Payouts `POST /v1/payments/payouts` | `returnPaymentReference` = payout batch ID, `returnPaymentStatus=PENDING` |
 | 8 | PP | Payout webhook `PAYMENT.PAYOUTS-ITEM.SUCCEEDED/FAILED` → `RETURN_PAYMENT_UPDATED` | N/A | `failureCause` when failed (PP-MONEY-M03) |
 
-The original capture is **never** refunded through the refund API at Medium (PP-MONEY-M02, D-13). Both references are preserved.
+For a **cancelled booking**, the original capture is **never** refunded through the refund API at Medium (PP-MONEY-M02, D-13); the return is the separate payout in step 7. Both references are preserved. Step 5a is the only Medium refund, and it applies only when no booking was ever created.
 
 ## 3. Ultimo: escrow (Stripe Sandbox, Connect "separate charges and transfers")
 

@@ -159,13 +159,18 @@ Track this contract as a **separate task** in the *Documentation* column (Common
 - [x] All PP-provided operations documented with endpoint, protocol, description, typed fields and example JSON
 - [x] All CP-provided operations required by PP listed and confirmed by CP
 - [x] OpenAPI and AsyncAPI files regenerated and validated
-- [x] Agreed decisions signed off by both teams (`common/03-agreed-decisions.md`)
+- [ ] Agreed decisions signed off by both teams (`common/03-agreed-decisions.md`): fill in Section 7
 - [ ] Reviewed by at least one CP member and one PP member; feedback addressed and recorded in the PR
 - [ ] Tagged `v1.0.0` before Fri 20 Nov 2026, 18:00
 
 ## 7. Sign-off
 
 The contract is binding for Milestone 1 once both teams have signed off below. Decisions marked "Lecturer confirmation" in `common/03-agreed-decisions.md` remain open points and do not block sign-off.
+
+**Points each team confirms by signing:**
+1. **Integration level.** Both teams implement the **Ultimo Kafka binding** of every CP↔PP operation (CP-MONEY-U01, CP-RATING-U01, CP-EVENT-U01 to U03 ↔ PP-SEARCH-U02, PP-RATING-U01, PP-EVENT-U01/U02), independent of each team's backend architecture (D-01).
+2. **Payment compensation (D-14).** At Medium (`DIRECT`) PP refunds a terminally rejected, unbound capture; at Ultimo (`ESCROW`) CP refunds its own platform charge.
+3. **CP module names** used in this contract (`MembershipModule`, `EventModule`, `RatingModule`, `BookingModule`, `SearchModule`, `PartnerIntegrationModule`) match CP's C4 component diagrams (ARCH-D06).
 
 | Team | Name | Role | Date | Pull request |
 |---|---|---|---|---|

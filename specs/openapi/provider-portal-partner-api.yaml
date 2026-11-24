@@ -1014,7 +1014,7 @@ paths:
       operationId: createBooking
       summary: PP-OP-06 Create booking
       description: |-
-        Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true (D-14); ambiguous timeouts and already-bound payments do not. Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.
+        Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW); at Medium (DIRECT) PP refunds the capture from the provider's merchant account itself and sets refundIssuedByBeneficiary=true (D-14). Ambiguous timeouts and already-bound payments trigger neither. Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.
 
         **SRS traceability:** PP-BOOK-S01, S02, U01, PP-MONEY-M01, U01; CP-BOOK-S01, S02, CP-MONEY-M01, U01, U04
 
@@ -1201,6 +1201,19 @@ paths:
                       refundRequiredByPayer: true
                       requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
                       timestamp: '2026-11-20T11:00:00Z'
+                mediumRefundedByProvider:
+                  value:
+                    error:
+                      code: QUOTE_EXPIRED
+                      message: The price quote has expired. Your PayPal payment has been refunded by the provider. Request
+                        a new quote.
+                      refundRequiredByPayer: false
+                      refundIssuedByBeneficiary: true
+                      returnPaymentReference: PAYPAL-REFUND-TEST
+                      returnPaymentStatus: SUCCEEDED
+                      requestId: 0b6f8f4c-5a5e-4c55-8a39-31b2f1b9b0a7
+                      timestamp: '2026-11-20T11:00:00Z'
+                  summary: Medium DIRECT payment (D-14)
                 quoteMismatch:
                   value:
                     error:
@@ -3409,7 +3422,16 @@ components:
               description: 'Kafka responses only: equivalent HTTP status'
             refundRequiredByPayer:
               type: boolean
-              description: 'CreateBooking only: CP must refund a payment it already captured (Decision D-14)'
+              description: 'CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)'
+            refundIssuedByBeneficiary:
+              type: boolean
+              description: 'CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider''s merchant
+                account (Decision D-14)'
+            returnPaymentReference:
+              type: string
+              description: 'With refundIssuedByBeneficiary=true: the gateway refund ID'
+            returnPaymentStatus:
+              $ref: '#/components/schemas/ReturnPaymentStatus'
             availableQuantity:
               type: integer
               description: INSUFFICIENT_AVAILABILITY only
@@ -3426,6 +3448,21 @@ components:
           - message
           - requestId
           - timestamp
+          anyOf:
+          - not:
+              required:
+              - refundIssuedByBeneficiary
+          - properties:
+              refundIssuedByBeneficiary:
+                enum:
+                - false
+          - properties:
+              refundRequiredByPayer:
+                enum:
+                - false
+            required:
+            - returnPaymentReference
+            - returnPaymentStatus
       required:
       - error
     TokenRequest:

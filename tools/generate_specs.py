@@ -348,12 +348,22 @@ S["Error"] = obj({
         "message": s("Human-readable message, safe to show to end users"),
         "details": arr(ref("ErrorDetail")),
         "httpStatus": i("Kafka responses only: equivalent HTTP status"),
-        "refundRequiredByPayer": b("CreateBooking only: CP must refund a payment it already captured (Decision D-14)"),
+        "refundRequiredByPayer": b("CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)"),
+        "refundIssuedByBeneficiary": b("CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider's merchant account (Decision D-14)"),
+        "returnPaymentReference": s("With refundIssuedByBeneficiary=true: the gateway refund ID"),
+        "returnPaymentStatus": ref("ReturnPaymentStatus"),
         "availableQuantity": i("INSUFFICIENT_AVAILABILITY only", minimum=0),
         "requestId": s("Echo of X-Request-Id or the Kafka messageId"),
         "timestamp": dt(),
     }, ["code", "message", "requestId", "timestamp"]),
 }, ["error"], "Standard error body (01-conventions.md Section 5).")
+# D-14: only one side compensates, and a beneficiary refund must carry its reference and status.
+S["Error"]["properties"]["error"]["anyOf"] = [
+    {"not": {"required": ["refundIssuedByBeneficiary"]}},
+    {"properties": {"refundIssuedByBeneficiary": {"enum": [False]}}},
+    {"properties": {"refundRequiredByPayer": {"enum": [False]}},
+     "required": ["returnPaymentReference", "returnPaymentStatus"]},
+]
 
 S["TokenRequest"] = obj({
     "clientId": enum(["cp-subsystem", "pp-subsystem"], "Partner client ID"),
@@ -1005,7 +1015,8 @@ pp_paths["/bookings"] = {"post": op(
     "Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the "
     "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; "
     "quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). "
-    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true (D-14); ambiguous timeouts and already-bound payments do not. "
+    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW); at Medium (DIRECT) PP refunds the "
+    "capture from the provider's merchant account itself and sets refundIssuedByBeneficiary=true (D-14). Ambiguous timeouts and already-bound payments trigger neither. "
     "Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.",
     "Bookings", "booking:write", [P("IdempotencyKey")],
     body(ref("CreateBookingRequest"), {"escrow": ex(BOOK_REQ, "Ultimo escrow payment")}),
@@ -1014,6 +1025,9 @@ pp_paths["/bookings"] = {"post": op(
      "409": err_resp("Quote expired/mismatched/consumed, eligibility changed, availability lost, or duplicate business identity.",
                      {"quoteExpired": ex(err("QUOTE_EXPIRED", "The price quote has expired. Request a new quote.", refundRequiredByPayer=True)),
                       "eligibilityChanged": ex(err("MEMBERSHIP_ELIGIBILITY_CHANGED", "Premium eligibility changed before booking creation. Request a new quote.", refundRequiredByPayer=True)),
+                      "mediumRefundedByProvider": ex(err("QUOTE_EXPIRED", "The price quote has expired. Your PayPal payment has been refunded by the provider. Request a new quote.",
+                                                         refundRequiredByPayer=False, refundIssuedByBeneficiary=True,
+                                                         returnPaymentReference="PAYPAL-REFUND-TEST", returnPaymentStatus="SUCCEEDED"), "Medium DIRECT payment (D-14)"),
                       "quoteMismatch": ex(err("QUOTE_MISMATCH", "The booking dates do not match the quote. Request a new quote.", refundRequiredByPayer=True)),
                       "insufficient": ex(err("INSUFFICIENT_AVAILABILITY", "The held rooms are no longer available.", refundRequiredByPayer=True)),
                       "paymentBound": ex(err("PAYMENT_ALREADY_BOUND", "The payment is already bound to a booking. Reconcile the CP order; do not refund it automatically.", refundRequiredByPayer=False)),

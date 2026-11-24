@@ -3,7 +3,7 @@
 **Owner:** Customer Portal · **Consumer:** Provider Portal · **Scope:** `membership:read`
 **SRS:** PP-DISCOUNT-S02 · CP-SUB-S01, S02 · **Decisions:** D-06
 
-Customer Portal is the authoritative owner of customer accounts and \$100/year Premium subscriptions. Within CP's **Modular Monolith**, `PartnerIntegrationModule` calls `EventModule` via `IEventExternalService` (`CustomerMembershipExternalDto`).
+Customer Portal is the authoritative owner of customer accounts and \$100/year Premium subscriptions. Within CP's **Modular Monolith**, `PartnerIntegrationModule` calls `MembershipModule` (accounts and Premium subscriptions, CP-SUB-S01/S02) via `IMembershipExternalService` (`CustomerMembershipExternalDto`). Event modules do not own membership data.
 
 ---
 

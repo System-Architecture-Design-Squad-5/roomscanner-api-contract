@@ -2,6 +2,18 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
+## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
+
+### Fixed
+- **D-14 split by payment level:** at Medium (`DIRECT`) the capture sits in the provider's PayPal account, which CP cannot access, so PP refunds a terminally rejected, unbound capture and returns `refundIssuedByBeneficiary`, `returnPaymentReference` and `returnPaymentStatus` (additive optional `Error` fields; the schema forbids both sides compensating and requires the refund reference). Ultimo keeps `refundRequiredByPayer=true`; Simplex is unaffected (nothing is captured). Updated PP-03, PP-05 (step 5a) and `01-conventions.md`. This matters because D-07 keeps `DIRECT` documented while escrow scope is open.
+- PP-06 documents PP's handling of all four CP-OP-05 change types, including `EVENT_DELETED`.
+- CP membership is served by `MembershipModule` / `IMembershipExternalService` (was `EventModule`) in CP-02, PP-02, the CP index and `01-conventions.md`.
+- CP-04 sends `FAVORITE_REMOVED` for every unfavorite regardless of current membership; CP re-checks Premium at display time.
+- PP-03's CP booking-group note includes the separate `CANCELLED` filter (D-09).
+- Aligned the "rating unavailable" behaviour across D-11, `04-kafka.md` §4 and CP-01 (stale cached value if held, otherwise "temporarily unavailable").
+- README: the sign-off checkbox is unticked until Section 7 is signed; listed the points both teams confirm by signing.
+- Cursor expiry (30 minutes, `400 INVALID_CURSOR`) moved into the shared pagination rules (`01-conventions.md` §6). Removed 70 whitespace-only lines from PP-01.
+
 ## [Unreleased] - 2026-11-24 (requirements and validation follow-up)
 
 Reviewed both partner APIs and the Kafka contract against the supplied CP SRS, PP SRS, Common Requirements and lecturer-answer summary. Architecture choices remain CP Ultimo frontend + Medium modular monolith backend; PP Ultimo frontend + Ultimo microservices backend.

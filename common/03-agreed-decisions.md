@@ -112,7 +112,7 @@ A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides h
 - **Overall:** `average` = mean of the Overall scores of **active** (non-archived) reviews. `count` = number of active reviews. A distribution of counts per star value 1-5 is included.
 - **Subcategory average:** mean over the active reviews that scored that subcategory.
 - **Preset option percentage:** `selectedCount / denominator × 100`, rounded to 1 decimal. **`denominator` = the number of reviews whose score for that subcategory falls in the option's star group.** Options are only offered for that group, and customers may pick 0, 1 or 2 (CP-RATING-M02). Reviews that picked no option still count in the denominator.
-- **PP caching:** PP caches CP's response in Redis (`rating:provider:{providerId}`, TTL **10 min**) to show ratings in search results and the provider dashboard. PP **never recalculates**. On a cache miss with CP unavailable, PP shows "Rating temporarily unavailable" and does **not** substitute a value of its own.
+- **PP caching:** PP caches CP's response in Redis (`rating:provider:{providerId}`, TTL **10 min**) to show ratings in search results and the provider dashboard. PP **never recalculates**. If CP is unavailable after the resend policy (04-kafka §4), PP shows the last value it still holds in cache marked "stale" (with its `asOf`); on a cache miss it shows "Rating temporarily unavailable". PP never substitutes a value of its own.
 - **CP local endpoints:** CP's `GET /api/v1/customer/reviews/preset-options` and `GET /api/v1/customer/providers/{providerId}/reviews` read directly from CP's `providerId`-sharded `RatingModule` (`BE-M07`) using this same denominator calculation.
 
 ### D-12 Event suggestions: ranking and the two-month rule
@@ -133,7 +133,15 @@ A confirmed, ongoing stay with no review appears in groups 1 and 2. CP decides h
 ### D-14 Booking rejected after payment was captured
 - **Problem:** At Medium/Ultimo, CP captures the payment **before** sending the booking. The booking can then be rejected (rooms sold out, quote expired, validation error).
 - **Mitigation:** PP-OP-05 places a **15-minute quote hold** on the inventory. PP atomically consumes it and enforces unique quote, CP order and gateway-payment bindings when creating the booking; a hold reduces risk but does not replace rejection/reconciliation rules.
-- **Terminal rejection:** PP must durably close the create request and verify no booking/payment binding exists before returning `refundRequiredByPayer=true`. Atomically mark the quote, CP order and payment identities `REJECTED_COMPENSATION_AUTHORIZED` so no request under another key can later create a booking with them. CP then compensates its own verified, unbound original capture and displays the exact cause. Replays return the recorded rejection; a new purchase needs new quote/order/payment identities.
+- **Terminal rejection:** PP must durably close the create request and verify no booking/payment binding exists before authorising any compensation. Atomically mark the quote, CP order and payment identities `REJECTED_COMPENSATION_AUTHORIZED` so no request under another key can later create a booking with them. Replays return the recorded rejection (with the latest return status); a new purchase needs new quote/order/payment identities.
+- **Who returns the money depends on where it sits (D-07).** Simplex is unaffected: nothing is captured, so `refundRequiredByPayer` stays `false`.
+
+| Level | Where the captured money is | Who returns it | Error fields PP sets |
+|---|---|---|---|
+| Medium (`DIRECT`, PayPal) | The **provider's** PayPal merchant account. CP has no access to it. | **PP**, before replying, refunds the unbound capture from the provider's merchant account (`POST /v2/payments/captures/{id}/refund`) | `refundRequiredByPayer=false`, `refundIssuedByBeneficiary=true`, `returnPaymentReference`, `returnPaymentStatus` |
+| Ultimo (`ESCROW`, Stripe Connect) | The squad's shared platform balance, charged by CP | **CP** refunds its own platform charge (CP holds platform credentials, D-07) | `refundRequiredByPayer=true` |
+
+  At Medium this is a refund of a capture that **never became a booking**, so it is not the cancellation return described in D-13/PP-MONEY-M02 (that still uses a separate payout). If the PayPal refund is `PENDING` or `FAILED`, PP retries it (3 attempts, as for D-08 returns) and replays of the same request return the updated `returnPaymentStatus`; CP shows the exact cause to the customer (CP-MONEY-M01).
 - **Ambiguous failure:** Timeout/503, lost acknowledgement or a duplicate binding is not proof of rejection. Preserve the write key and reconcile through the durable replay result and PP-OP-08's customer/order lookup. Never refund solely because a response was lost or an in-flight lookup was empty. Unique bindings remain after Redis expiry and workflow archiving.
 
 ### D-15 Time zones

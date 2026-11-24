@@ -111,7 +111,7 @@ Statistics are **on demand only**: no rating-change push and no real-time refres
 ### Errors
 - `404 RESOURCE_NOT_FOUND` is **not** used for providers with no reviews (`200` with `totalReviews: 0`).
 - `400 VALIDATION_ERROR`: invalid `include` enum or `commentsLimit` outside `1–50`.
-- `503 SERVICE_UNAVAILABLE`: target review shard unavailable → PP retries (`04-kafka.md` §4), then shows its cached value marked stale.
+- `503 SERVICE_UNAVAILABLE`: target review shard unavailable → PP resends (`04-kafka.md` §4), then shows its cached value marked stale if it still holds one, otherwise "Rating temporarily unavailable" (D-11).
 - `401 PARTNER_UNAUTHENTICATED` / `403 PARTNER_FORBIDDEN` / `429 RATE_LIMITED`: standard partner errors, see `common/01-conventions.md` (read limit: 120 requests per 60 s).
 
 ```json

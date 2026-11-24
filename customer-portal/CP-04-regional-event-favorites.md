@@ -25,9 +25,10 @@ Customer Portal (`EventModule` + `PartnerIntegrationModule`) is the authoritativ
 ### Rules
 - CP admins create events only in cities PP serves (`VN`, `SG`), using PP's city naming (`EventInfo.city`, case-insensitive). CP therefore never sends PP an out-of-region event in `CP-OP-05` or `PP-OP-12`; PP needs no extra error for this.
 - CP sends `FAVORITE_ADDED` **only** for customers who hold an `ACTIVE` `PREMIUM` membership at favorite time (`CP-EVENT-M01`).
-- CP sends `FAVORITE_REMOVED` when an active Premium customer unfavorites an event (`DELETE /api/v1/customer/events/{eventId}/favorite`) so PP cancels any pending 2-month scheduled notification.
+- CP sends `FAVORITE_REMOVED` whenever a customer unfavorites an event (`DELETE /api/v1/customer/events/{eventId}/favorite`), **whatever their current membership**, so PP cancels any pending 2-month scheduled notification. An expired member's favorite must still cancel its schedule.
 - CP sends `EVENT_DATES_CHANGED` only when an admin edits `startDate` or `endDate` (`PUT /api/v1/customer/admin/events/{eventId}`). Other metadata edits are not sent (`D-12`).
 - CP sends `EVENT_DELETED` when an admin deletes an event (`DELETE /api/v1/customer/admin/events/{eventId}`) so PP cancels all pending scheduled notifications for that `eventId`.
+- Membership can expire after `FAVORITE_ADDED` was sent. CP's notification consumer therefore re-checks active Premium and the favorite **at display time** (CP-EVENT-U02, PP-06 §Reliability) and drops the notification otherwise.
 
 ### Example (`FAVORITE_ADDED`)
 
