@@ -1,6 +1,6 @@
 # 04: Kafka Integration (Ultimo)
 
-These are the Kafka rules for CP↔PP: paired topics, correlation and retries (`INT-U01`–`INT-U03`). The [PMS outline](../pms/PMS-cross-ecosystem-draft.md) covers the separate cross-squad exchange. Inside PP, `BE-U02` applies to microservice messaging. CP modules call each other in-process through external interfaces and DTOs (`BE-M03`–`BE-M06`).
+These are the Kafka rules between CP and PP: paired topics, correlation and retries (`INT-U01` to `INT-U03`). The [PMS draft](../pms/PMS-cross-ecosystem-draft.md) proposes separate cross-squad rules pending partner agreement. Inside PP, `BE-U02` applies to microservice messaging. CP modules call each other in-process through external interfaces and DTOs (`BE-M03` to `BE-M06`).
 
 ## 1. Message envelope
 

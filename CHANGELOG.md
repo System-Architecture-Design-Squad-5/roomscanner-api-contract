@@ -5,6 +5,7 @@ All notable changes to the squad API contract. Versioning follows the rules in `
 ## [Unreleased] - Documentation review (2026-11-25)
 
 - Added direct links to the shared conventions and shortened the README, Kafka and booking notes.
+- Expanded the pending PMS draft with typed operations and JSON examples, provider entitlement, owner routing and broker rejection rules. Cross-squad checkout remains gated. No binding CP-PP changes.
 - Kafka resend policy: Clarified when callers resend under `INT-U03`, which outcomes responders cache, and how to handle late replies without repeating a write. Added a rating request recovery example. No wire schema changes.
 - Booking & payment design:
     - Clarified replay across idempotency keys.

@@ -1,5 +1,7 @@
 # RoomScanner Squad API Contract
 
+**Start here:** [Shared conventions](common/01-conventions.md) | [Kafka rules](common/04-kafka.md) | [Cross-squad PMS draft](pms/PMS-cross-ecosystem-draft.md) (pending partner agreement)
+
 | Document control | |
 |---|---|
 | Contract version | 1.0.0 |
@@ -11,7 +13,7 @@
 | Customer Portal team | `Team 10` |
 | Repository | `https://github.com/System-Architecture-Design-Squad-5/roomscanner-api-contract` |
 
-This contract covers the APIs between Provider Portal (PP) and Customer Portal (CP). Start with the [shared conventions](common/01-conventions.md), the [operation index](#3-operation-index), or the [ownership table](#4-ownership-boundaries-who-is-authoritative).
+This contract covers the APIs between Provider Portal (PP) and Customer Portal (CP). See the [operation index](#3-operation-index) and [ownership table](#4-ownership-boundaries-who-is-authoritative).
 
 **Chosen architecture levels**
 
@@ -31,7 +33,7 @@ The CP and PP integration target is **Ultimo Kafka** for both portals.
 
 See [requirement coverage](#8-requirement-coverage) for the mapping to `TW-S02`, `TW-S06`, `TW-M01`, `TW-U04` and the integration requirements.
 
-The [cross-squad PMS outline](pms/PMS-cross-ecosystem-draft.md) is for reference. Binding PMS contract is separate and still needs agreement with the partner squad.
+The cross-squad PMS draft has its own typed operations and examples. It is outside the binding CP-PP contract and generated specs until the squads sign a separate agreement.
 
 ---
 
@@ -189,7 +191,7 @@ The open decisions include escrow scope (D-07), the two-month event notification
 | `INT-M03` | [Partner authentication](common/01-conventions.md#4-partner-authentication-and-authorization-int-m03): credentials, scopes and rejection of untrusted callers. |
 | `INT-U01`–`INT-U03` | [Kafka rules](common/04-kafka.md) and [AsyncAPI](specs/asyncapi/roomscanner-kafka.yaml): paired topics, correlation and retries. |
 | `BE-U04` | [Rate limits](common/01-conventions.md#7-rate-limits): scope, threshold, window and response. |
-| `BE-U09` | [PMS outline](pms/PMS-cross-ecosystem-draft.md): broker-based cross-squad exchange; separate agreement pending. |
+| `BE-U09`, `DEP-U05` | [PMS draft](pms/PMS-cross-ecosystem-draft.md): broker-based cross-squad exchange, typed operations, Machine 5 and untrusted-system rejection. Partner agreement pending. |
 
 ### 8.2 Functional exchanges (SRS Section 3 of both subsystems)
 
