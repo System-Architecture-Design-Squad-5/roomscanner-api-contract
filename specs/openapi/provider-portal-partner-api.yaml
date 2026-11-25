@@ -1659,6 +1659,7 @@ paths:
                           currency: USD
                       payment:
                         mode: ESCROW
+                        orderId: 55aa66bb-0000-4000-8000-000000000701
                         originalPaymentReference: pi_3QAbCdTEST0001
                         escrowStatus: RELEASED
                         releaseReference: tr_1QXyzTEST0001

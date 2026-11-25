@@ -664,10 +664,9 @@ paths:
                         amountMinor: 12750
                         currency: USD
                     payment:
-                      mode: ESCROW
-                      originalPaymentReference: pi_3QAbCdTEST0001
-                      escrowStatus: RELEASED
-                      releaseReference: tr_1QXyzTEST0001
+                      mode: DIRECT
+                      orderId: 55aa66bb-0000-4000-8000-000000000701
+                      originalPaymentReference: PAYPAL-CAPTURE-7XK12345AB
                       returnPaymentStatus: NOT_REQUIRED
                     createdAt: '2026-12-01T03:02:12Z'
                     updatedAt: '2026-12-01T09:15:40Z'
@@ -687,7 +686,7 @@ paths:
                     total:
                       amountMinor: 12750
                       currency: USD
-                summary: Booking confirmed, escrow released
+                summary: Booking confirmed after direct payment
       responses:
         '200':
           description: Event accepted.
@@ -1774,11 +1773,52 @@ components:
               status:
                 enum:
                 - COMPLETED
-      - properties:
+      - type: object
+        properties:
           eventType:
             enum:
             - RETURN_PAYMENT_UPDATED
+      - type: object
+        properties:
+          eventType:
+            enum:
             - ESCROW_RELEASE_UPDATED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - RELEASED
+                    - RELEASE_FAILED
+        not:
+          anyOf:
+          - required:
+            - emailData
+      not:
+        type: object
+        properties:
+          eventType:
+            enum:
+            - BOOKING_CONFIRMED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - HELD
+                    - REFUNDED
     BookingEventAck:
       type: object
       properties:

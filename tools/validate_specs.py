@@ -334,6 +334,45 @@ class ContractValidation(unittest.TestCase):
         data["payload"]["payment"]["escrowStatus"] = "RELEASED"
         self.assert_invalid("BookingResponse", data)
 
+    def test_escrow_examples_keep_approval_and_release_separate(self):
+        events = {ex["name"]: ex["payload"]["payload"] for ex in MESSAGES["BookingStatusEvent"]["examples"]}
+        approval = events["confirmed"]
+        approved_payment = approval["booking"]["payment"]
+        self.assertEqual(approved_payment["escrowStatus"], "RELEASED")
+        self.assertEqual(approved_payment["releaseReference"], events["escrowReleased"]["booking"]["payment"]["releaseReference"])
+        for name, status in [("escrowReleased", "RELEASED"), ("escrowReleaseFailedAlternative", "RELEASE_FAILED")]:
+            with self.subTest(example=name):
+                update = events[name]
+                payment = update["booking"]["payment"]
+                self.assertEqual(update["eventType"], "ESCROW_RELEASE_UPDATED")
+                self.assertEqual(update["sequence"], approval["sequence"] + 1)
+                self.assertEqual(update["booking"]["bookingId"], approval["booking"]["bookingId"])
+                self.assertEqual(update["booking"]["status"], "CONFIRMED")
+                self.assertEqual(payment["orderId"], approved_payment["orderId"])
+                self.assertEqual(payment["escrowStatus"], status)
+                self.assertEqual(payment["returnPaymentStatus"], "NOT_REQUIRED")
+                self.assertEqual("releaseReference" in payment, status == "RELEASED")
+                self.assertNotIn("emailData", update)
+
+    def test_booking_event_rejects_wrong_escrow_states(self):
+        events = {ex["name"]: ex["payload"] for ex in MESSAGES["BookingStatusEvent"]["examples"]}
+        approval = copy.deepcopy(events["confirmed"])
+        payment = approval["payload"]["booking"]["payment"]
+        del payment["releaseReference"]
+        for status in ("RELEASE_PENDING", "RELEASE_FAILED"):
+            with self.subTest(status=status):
+                payment["escrowStatus"] = status
+                self.assert_valid("BookingStatusEvent", approval)
+        payment["escrowStatus"] = "HELD"
+        self.assert_invalid("BookingStatusEvent", approval)
+
+        update = copy.deepcopy(events["escrowReleased"])
+        update["payload"]["booking"]["payment"] = {
+            "mode": "DIRECT", "originalPaymentReference": "PAYPAL-CAPTURE-7XK12345AB",
+            "returnPaymentStatus": "NOT_REQUIRED",
+        }
+        self.assert_invalid("BookingStatusEvent", update)
+
     def test_eligible_review_has_provider_and_stay_evidence(self):
         data = next(copy.deepcopy(ex["payload"]) for ex in MESSAGES["BookingResponse"]["examples"]
                     if ex["payload"]["type"] == "GET_ELIGIBILITY_RESULT")

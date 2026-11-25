@@ -9,6 +9,7 @@ All notable changes to the squad API contract. Versioning follows the rules in `
 - Booking & payment design:
     - Clarified replay across idempotency keys.
     - Aligned D-14 rejection and replay with the existing quote, payment and idempotency records. Extra captures require manual reconciliation. Refund flags require a verified rejection, and beneficiary refunds require a reference and status.
+    - Aligned confirmation and release events with the booking trace. Defined cancellation during transfer, retained per-booking event ordering, and used the CP order ID for Stripe `transfer_group`.
 
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 

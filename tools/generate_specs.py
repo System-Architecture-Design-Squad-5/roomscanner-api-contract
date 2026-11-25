@@ -534,7 +534,18 @@ S["BookingStatusEvent"]["oneOf"] = [
      **({"required": ["emailData"]} if event_type != "BOOKING_COMPLETED" else {})}
     for event_type, status in [("BOOKING_CONFIRMED", "CONFIRMED"),
                                ("BOOKING_CANCELLED", "CANCELLED"), ("BOOKING_COMPLETED", "COMPLETED")]
-] + [{"properties": {"eventType": {"enum": ["RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"]}}}]
+] + [
+    obj({"eventType": {"enum": ["RETURN_PAYMENT_UPDATED"]}}),
+    obj({"eventType": {"enum": ["ESCROW_RELEASE_UPDATED"]},
+         "booking": obj({"payment": obj({"mode": {"enum": ["ESCROW"]},
+                                          "escrowStatus": {"enum": ["RELEASED", "RELEASE_FAILED"]}})})},
+        **absent("emailData")),
+]
+S["BookingStatusEvent"]["not"] = obj({
+    "eventType": {"enum": ["BOOKING_CONFIRMED"]},
+    "booking": obj({"payment": obj({"mode": {"enum": ["ESCROW"]},
+                                      "escrowStatus": {"enum": ["HELD", "REFUNDED"]}})}),
+})
 
 S["BookingEventAck"] = obj({"eventId": uuid(), "accepted": b(), "duplicate": b()}, ["eventId", "accepted", "duplicate"])
 
@@ -710,7 +721,7 @@ SUMMARY = dict(bookingId=IDS["booking"], bookingCode="RS-VN-24F7Q", status="PEND
                createdAt="2026-12-01T03:02:12Z", updatedAt="2026-12-01T03:02:12Z")
 BOOKING = dict(SUMMARY, reviewableFrom="2027-04-10", receptionistContact={"branchName": "Riverside Homestay Hoi An", "branchPhone": "+842353861234"})
 CONFIRMED = dict(SUMMARY, status="CONFIRMED", updatedAt="2026-12-01T09:15:40Z",
-                 payment={"mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED",
+                 payment={"mode": "ESCROW", "orderId": IDS["order"], "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED",
                           "releaseReference": "tr_1QXyzTEST0001", "returnPaymentStatus": "NOT_REQUIRED"})
 CANCELLED = dict(SUMMARY, status="CANCELLED", updatedAt="2026-12-03T05:00:00Z",
                  cancellation={"cancelledBy": "CUSTOMER", "reason": "Change of travel plans", "cancelledAt": "2026-12-03T05:00:00Z"},
@@ -1177,7 +1188,10 @@ cp_paths["/booking-events"] = {"post": op(
     "Webhook that PP calls for every booking transition (PP-OP-11). CP acknowledges within 5 s and does email and socket work asynchronously. "
     "CP de-duplicates on eventId. The X-RS-Signature header carries t=<unixSeconds>,v1=HMAC-SHA256(secret, t + '.' + rawBody); "
     "requests older than 300 s are rejected.", "Booking events", "booking-event:write", None,
-    body(ref("BookingStatusEvent"), {"confirmed": ex(BOOKING_EVENT, "Booking confirmed, escrow released")}),
+    body(ref("BookingStatusEvent"), {"confirmed": ex(dict(BOOKING_EVENT, booking=dict(CONFIRMED, payment={
+        "mode": "DIRECT", "orderId": IDS["order"], "originalPaymentReference": "PAYPAL-CAPTURE-7XK12345AB",
+        "returnPaymentStatus": "NOT_REQUIRED",
+    })), "Booking confirmed after direct payment")}),
     {**ok("Event accepted.", ref("BookingEventAck"), {"default": ex({"eventId": BOOKING_EVENT["eventId"], "accepted": True, "duplicate": False})}),
      **std_errors("400", "401", "403", "429", "503")},
     "replaced by rs.booking.events.v1 (PP -> CP)", "PP-MONEY-S01, M03; CP-MONEY-S01, M02",
@@ -1433,8 +1447,14 @@ _more("BookingStatusEvent", [
 _more("BookingStatusEvent", [
     ("escrowReleased", env_example("ESCROW_RELEASE_UPDATED", "PP",
         {"eventId": "11112222-0000-4000-8000-000000000006", "eventType": "ESCROW_RELEASE_UPDATED", "occurredAt": "2026-12-01T09:15:45Z",
-         "sequence": 3, "booking": CONFIRMED},
-        correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e6", ts="2026-12-01T09:15:45Z")),
+         "sequence": 3, "booking": dict(CONFIRMED, updatedAt="2026-12-01T09:15:45Z")},
+         correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e6", ts="2026-12-01T09:15:45Z")),
+    ("escrowReleaseFailedAlternative", env_example("ESCROW_RELEASE_UPDATED", "PP",
+        {"eventId": "11112222-0000-4000-8000-000000000009", "eventType": "ESCROW_RELEASE_UPDATED", "occurredAt": "2026-12-01T09:15:45Z",
+         "sequence": 3, "booking": dict(CONFIRMED, updatedAt="2026-12-01T09:15:45Z",
+                                       payment=dict(SUMMARY["payment"], escrowStatus="RELEASE_FAILED",
+                                                    failureCause="The connected account cannot receive transfers."))},
+         correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e9", ts="2026-12-01T09:15:45Z")),
     ("completed", env_example("BOOKING_COMPLETED", "PP",
         {"eventId": "11112222-0000-4000-8000-000000000007", "eventType": "BOOKING_COMPLETED", "occurredAt": "2027-04-13T19:00:00Z",
          "sequence": 4, "booking": dict(CONFIRMED, status="COMPLETED", updatedAt="2027-04-13T19:00:00Z")},
