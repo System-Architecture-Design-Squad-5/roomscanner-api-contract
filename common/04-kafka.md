@@ -125,8 +125,8 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 2. It produces to the request topic, with `replyTo` set to the paired response topic.
 3. The responder validates the authenticated producer, message type and paired `replyTo`, then returns the **same** `correlationId` and `traceId`. `causationId` identifies the transport attempt that caused this response.
 4. The requester's **dedicated response consumer** resolves the expected request type and looks up `pending:{source}:{type}:{correlationId}`. It verifies response type, producer and trace before applying it:
-   - found and still waiting → persist the result in the shared pending record and notify `waiterInstanceId`. Any reply consumer may receive the response, so the owning HTTP instance must also be able to read that stored result if a notification is missed. Delete the key after the waiter consumes the result, or let its TTL expire.
-   - not found (late duplicate) → log it and ignore it.
+   - found and still waiting -> handle retryable errors under §4 without completing the call. For a final result, persist it in the shared pending record and notify `waiterInstanceId`. Any reply consumer may receive the response, so the owning HTTP instance must also be able to read that stored result if a notification is missed. Delete the key after the waiter consumes the result, or let its TTL expire.
+   - not found (late duplicate) -> log it and ignore it.
 5. A successful business result returns `status: OK`. A business rejection, including a validation error, returns `status: ERROR`. Infrastructure failures can cause a timeout. Late results are retained/reconciled by business identity; an expired HTTP waiter does not undo a committed booking.
 
 ## 4. Resend policy (INT-U03)
@@ -139,11 +139,25 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
 | `GET_RATING_STATISTICS` (PP-RATING-U02) | 5 s | 3 | 1 s, 2 s | 20 s |
 | `GET_MEMBERSHIP` | 3 s | 3 | 0.5 s, 1 s | 12 s |
 
-- A resend keeps the **same `correlationId`**, gets a **new `messageId`**, and increments `attempt`.
-- **Replay the outcome, not the message.** Cache the business outcome in Redis for 24 h under `processed:{source}:{type}:{correlationId}`. On a duplicate, use a new response `messageId` and `timestamp`. Copy `correlationId` and `traceId` from the request. Set `causationId` and, for errors, `error.requestId` to the current attempt's `messageId`.
-- **Replay writes by their durable key:** authenticated partner + operation + `idempotencyKey`. Changed input returns `IDEMPOTENCY_CONFLICT`. [Quote, order and payment uniqueness and terminal rejections](../provider-portal/PP-03-bookings.md#pp-op-06-createbooking) survive Redis expiry.
+**When to resend**
+
+- Resend after a publish failure, an attempt timeout or a transient `ERROR` reply (`error.httpStatus` is `503` or `504`). A success or a non-retryable error, such as invalid input or a business rejection, ends the request.
+- Count the first send toward the attempt limit. Use the backoff above and stop when the attempt limit or the original deadline is reached. Keep the same `correlationId`, `traceId`, payload, `deadline` and `idempotencyKey` (for writes). Use a new `messageId` and increment `attempt`.
+- A retryable reply does not complete the call. Use `causationId` to match it to the request attempt. 
+    - A duplicate or a reply to an older attempt must not schedule another resend. 
+    - A valid final reply to any sent attempt can complete a request that is still waiting within its deadline.
 - When retries run out, return `503 SERVICE_UNAVAILABLE` to the calling portal's frontend. CP maps it to `errorCode: "SERVICE_UNAVAILABLE"` and `validInputExample: null` (see [conventions §5.2](01-conventions.md#5-error-format)). For rating statistics, PP shows cached data marked stale, or “Rating temporarily unavailable” if none is cached (D-11).
-- A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
+
+**What to cache**
+
+- Cache only final business outcomes (success or terminal rejection) for 24 h under `processed:{source}:{type}:{correlationId}`. 
+    - Do not cache a transient error or timeout as a final outcome. 
+    - On replay, use a new response `messageId` and `timestamp`, copy the request's `correlationId` and `traceId`, and set `causationId`. For errors, set `error.requestId` to the current attempt's `messageId`.
+- For writes, check the durable record keyed by authenticated partner + operation + `idempotencyKey` before retrying the work. Replay a final outcome, if the write is still in flight or its outcome is uncertain, do not start another write or authorize compensation. Changed input returns `IDEMPOTENCY_CONFLICT`. [Quote, order and payment uniqueness and terminal rejections](../provider-portal/PP-03-bookings.md#pp-op-06-createbooking) survive Redis expiry.
+
+**Example: CP recovers during a rating request.** PP sends `GET_RATING_STATISTICS`. CP's review shard is down, so CP replies with `ERROR` and `error.httpStatus: 503` without caching it as final. PP waits 1 s and resends with the same correlation ID, a new message ID and `attempt: 2`. The shard has recovered, so CP queries it again and replies `OK`. PP completes the request.
+
+**Consumer retries** are separate from these requester resends. A consumer that cannot process a message after 3 local retries (e.g. malformed JSON) sends it to `<topic>.dlq` and commits the offset, so the partition is not blocked.
 
 ## 5. Redundancy and delivery guarantees
 

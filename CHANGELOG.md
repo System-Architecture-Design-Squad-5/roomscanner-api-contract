@@ -2,9 +2,10 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
-## [Unreleased] - Documentation review
+## [Unreleased] - Documentation review (2026-11-25)
 
-- Added direct links to the shared conventions (T26) and shortened the README, Kafka and booking notes. The wire schemas and examples have not changed. The PMS outline remains an open cross-squad agreement.
+- Added direct links to the shared conventions and shortened the README, Kafka and booking notes.
+- Kafka resend policy: Clarified when callers resend under `INT-U03`, which outcomes responders cache, and how to handle late replies without repeating a write. Added a rating request recovery example. No wire schema changes.
 
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 
