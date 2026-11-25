@@ -6,6 +6,8 @@ All notable changes to the squad API contract. Versioning follows the rules in `
 
 - Added direct links to the shared conventions and shortened the README, Kafka and booking notes.
 - Kafka resend policy: Clarified when callers resend under `INT-U03`, which outcomes responders cache, and how to handle late replies without repeating a write. Added a rating request recovery example. No wire schema changes.
+- Booking & payment design:
+    - Clarified replay across idempotency keys.
 
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 

@@ -1013,11 +1013,12 @@ pp_paths["/quotes"] = {"post": op(
 pp_paths["/bookings"] = {"post": op(
     "createBooking", "PP-OP-06", "Create booking",
     "Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the "
-    "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; "
-    "quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). "
-    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW); at Medium (DIRECT) PP refunds the "
+    "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer. "
+    "The quote, CP order and gateway payment may bind to only one booking. Replay an identical request before checking quote expiry, even if its key or transport changed. "
+    "Re-verify Premium eligibility at creation (D-06). "
+    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW). At Medium (DIRECT) PP refunds the "
     "capture from the provider's merchant account itself and sets refundIssuedByBeneficiary=true (D-14). Ambiguous timeouts and already-bound payments trigger neither. "
-    "Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.",
+    "Served by the primary or redundant booking instance (PP-BOOK-U01). The Idempotency-Key makes retries after failover safe.",
     "Bookings", "booking:write", [P("IdempotencyKey")],
     body(ref("CreateBookingRequest"), {"escrow": ex(BOOK_REQ, "Ultimo escrow payment")}),
     {**ok("Booking created.", ref("Booking"), {"escrow": ex(BOOKING)}, code="201"),
