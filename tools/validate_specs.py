@@ -206,11 +206,36 @@ class ContractValidation(unittest.TestCase):
         base = {"code": "QUOTE_EXPIRED", "message": "m", "requestId": "r", "timestamp": "2026-12-01T03:00:01Z"}
         ok = dict(base, refundRequiredByPayer=False, refundIssuedByBeneficiary=True,
                   returnPaymentReference="PAYPAL-REFUND-TEST", returnPaymentStatus="SUCCEEDED")
-        self.assertTrue(check.is_valid({"error": ok}))
+        for status in ("PENDING", "SUCCEEDED", "FAILED"):
+            with self.subTest(status=status):
+                self.assertTrue(check.is_valid({"error": dict(ok, returnPaymentStatus=status)}))
         self.assertTrue(check.is_valid({"error": dict(base, refundRequiredByPayer=True)}))
-        self.assertFalse(check.is_valid({"error": dict(ok, refundRequiredByPayer=True)}))
-        missing = dict(ok); del missing["returnPaymentReference"]
-        self.assertFalse(check.is_valid({"error": missing}))
+        for invalid in (
+            dict(ok, refundRequiredByPayer=True),
+            dict(ok, refundIssuedByBeneficiary=False),
+            dict(ok, returnPaymentReference=""),
+            dict(ok, returnPaymentReference=" "),
+            dict(ok, returnPaymentStatus="NOT_REQUIRED"),
+            {k: v for k, v in ok.items() if k != "returnPaymentReference"},
+        ):
+            self.assertFalse(check.is_valid({"error": invalid}), invalid)
+
+    def test_refund_flags_are_not_allowed_on_conflicts_or_uncertain_outcomes(self):
+        doc = DOCS[FILES[0]]
+        check = validator(doc, doc["components"]["schemas"]["Error"])
+        error = {"message": "m", "requestId": "r", "timestamp": "2026-12-01T03:00:01Z"}
+        for code in ("ORDER_ALREADY_BOUND", "QUOTE_ALREADY_CONSUMED", "PAYMENT_ALREADY_BOUND", "IDEMPOTENCY_CONFLICT",
+                     "PAYMENT_REFERENCE_MISMATCH", "PAYMENT_NOT_CAPTURED", "SERVICE_UNAVAILABLE"):
+            with self.subTest(code=code):
+                self.assertTrue(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=False)}))
+                self.assertFalse(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=True)}))
+                self.assertFalse(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=False,
+                                                               refundIssuedByBeneficiary=True, returnPaymentReference="re_test",
+                                                               returnPaymentStatus="PENDING")}))
+        kafka_error = example("BookingResponse", 1)
+        self.assert_valid("BookingResponse", kafka_error)
+        kafka_error["payload"]["error"]["httpStatus"] = 503
+        self.assert_invalid("BookingResponse", kafka_error)
 
     def test_reversal_outcome_requires_reference_or_failure_cause(self):
         schema = ASYNC["components"]["schemas"]["BookingPaymentStatus"]

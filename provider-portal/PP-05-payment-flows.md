@@ -5,11 +5,13 @@
 Neither team controls the whole money lifecycle (CP-MONEY-M02(S)): **CP initiates and captures**, and **PP approves, releases and returns**. Gateway keys are per subsystem. Sandbox credentials live in each team's `.env` and are never committed.
 
 > **CP Customer-Facing Endpoint Mapping (`BookingModule`):**
-> 1. `POST /api/v1/customer/bookings/quotes` → calls `PP-OP-05 CreatePriceQuote` (`quoteId`, `priceBreakdown.total`, `payee`).
-> 2. `POST /api/v1/customer/payments/authorize` → Step 1 Authorize (Stripe `PaymentIntent.create(capture_method=manual)` / PayPal order creation).
-> 3. `POST /api/v1/customer/payments/capture` → Step 2 Capture into escrow (`CAPTURED_HELD` / `CAPTURED`).
-> 4. `POST /api/v1/customer/bookings` → calls `PP-OP-06 CreateBooking` (at Ultimo CP refunds automatically if `PP-OP-06` fails with `refundRequiredByPayer=true`; at Medium PP has already refunded and sets `refundIssuedByBeneficiary=true`, D-14).
+> 1. `POST /api/v1/customer/bookings/quotes` -> calls `PP-OP-05 CreatePriceQuote` (`quoteId`, `priceBreakdown.total`, `payee`).
+> 2. `POST /api/v1/customer/payments/authorize` -> Step 1 Authorize (Stripe `PaymentIntent.create(capture_method=manual)` / PayPal order creation).
+> 3. `POST /api/v1/customer/payments/capture` -> captures on the squad platform (`CAPTURED_HELD`) or directly for the provider (`CAPTURED`).
+> 4. `POST /api/v1/customer/bookings` -> calls `PP-OP-06 CreateBooking`. For rejected captures, follow [D-14](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured). A timeout is not permission to refund.
 > 5. `POST /api/v1/customer/bookings/{bookingId}/cancel` → calls `PP-OP-09 CancelBookingByCustomer` (triggers PP Step 5 Refund / PayPal Payout).
+
+For paid checkout, CP reuses the existing order and gateway payment for the quote. Use separate stable gateway request IDs for creation and capture. If a response is lost, reconcile the original operation before retrying. Do not start a new payment for an unresolved checkout. See [D-14](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured) for a separate capture on the same quote.
 
 ## 1. Simplex: simulated order (no third-party provider)
 
@@ -32,7 +34,7 @@ CP                                   PP                                   CP
 | 3 | CP | On **failure**: show the exact PayPal error to the customer and send **no** booking (CP-MONEY-M01) | N/A | N/A |
 | 4 | CP | PP-OP-06 with `state=CAPTURED` | N/A | `paymentReference` = capture ID |
 | 5 | PP | Verify the capture (status `COMPLETED`, amount, payee) | `GET /v2/payments/captures/{id}` | N/A |
-| 5a | PP | Booking **terminally rejected** before it exists (D-14): no booking, so this is not a cancellation. PP refunds the unbound capture from the provider's merchant account and replies with `refundIssuedByBeneficiary=true` | `POST /v2/payments/captures/{id}/refund` | `returnPaymentReference` = refund ID, `returnPaymentStatus` |
+| 5a | PP | After recording a terminal rejection, submit a refund of the unbound capture. This is not a cancellation (D-14). | `POST /v2/payments/captures/{id}/refund` | Once a reference exists: `refundIssuedByBeneficiary=true`, `returnPaymentReference`, `returnPaymentStatus` |
 | 6 | PP | Receptionist approves → `BOOKING_CONFIRMED`. **No second charge.** | none | N/A |
 | 7 | PP | On cancellation → release the rooms, then make a **separate payout** from the provider to the customer's email | PayPal Payouts `POST /v1/payments/payouts` | `returnPaymentReference` = payout batch ID, `returnPaymentStatus=PENDING` |
 | 8 | PP | Payout webhook `PAYMENT.PAYOUTS-ITEM.SUCCEEDED/FAILED` → `RETURN_PAYMENT_UPDATED` | N/A | `failureCause` when failed (PP-MONEY-M03) |
@@ -59,8 +61,14 @@ Rules:
 - Cancellation **after** release (customer/receptionist within D-08's permitted window): retain `releaseReference`, set `transferReversalStatus=PENDING` and reverse that transfer (`Transfer.createReversal`). On success, save `transferReversalReference` (`trr_...`), set its status to `SUCCEEDED`, then submit the customer refund. While refund is pending, `escrowStatus=HELD`; set `REFUNDED` only after actual refund success. The original payment, release, reversal and refund references are all retained and reported in PP-OP-11.
 - If reversal fails, retain `escrowStatus=RELEASED`, set `transferReversalStatus=FAILED` and `transferReversalFailureCause` to the gateway cause; set `returnPaymentStatus=FAILED` and explain that the customer refund has not been submitted. The booking remains cancelled and inventory remains released. PP retries transient failures under its 3-attempt return policy and exposes a durable failed outcome for operator recovery. If reversal succeeds but refund fails, preserve the successful reversal and retry only the refund, without reversing again. Never report a successful customer return from a successful reversal alone.
 - Stripe sends events for the shared platform. Configure authenticated webhook routes: CP handles payment authorization/capture/order events; PP handles release, reversal, refund and connected-account payout outcomes. Verify Stripe signatures on the raw body and deduplicate Stripe `event.id` in the receiving subsystem. A shared event delivery must not grant the receiver ownership of the other team's business action. PP publishes the beneficiary outcomes to CP through PP-OP-11; these include pending and failed reversals/refunds. Webhook URLs and secrets are deployment configuration, not values sent by CP in a booking request.
-- Idempotency keys sent to Stripe = `{bookingId}:{operation}`, so a retry after service failover never transfers or refunds twice.
-- The return workflow and its reference/status updates are persisted before acknowledgement and survive booking-service failover. Distinct stable operation keys are used for transfer reversal and refund. Stripe's idempotency cache complements the service's durable business ledger; it does not replace it.
+
+### Recovering pending gateway actions
+
+Use the status and references in `Payment` and the recorded request outcome to reconcile after a timeout or restart. Use a stable gateway request ID for each operation: `bookingId:release` for the Stripe transfer and distinct IDs based on the original target and operation for reversals and refunds. Retry the identical call only while the gateway still guarantees that it will not repeat the operation. Record the verified result and queue booking events in `OutboxEvent` in the same transaction when a booking exists.
+
+If the existing records and gateway cannot establish the outcome and a safe retry is no longer possible, leave it pending for manual reconciliation. Never send a fresh gateway request just because the reply was lost.
+
+<!-- shortcut: the fixed model does not track a second capture per quote. Add durable per-capture tracking only if automatic reconciliation becomes a requirement. -->
 
 This sandbox design uses [Stripe separate charges and transfers](https://docs.stripe.com/connect/separate-charges-and-transfers): platform charges and connected-account transfers are separate objects, and refunding a charge does not itself recover the associated transfer. The contract therefore records both the transfer recovery and the customer refund.
 

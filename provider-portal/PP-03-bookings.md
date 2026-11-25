@@ -58,6 +58,12 @@
 
 Only unused quote holds expire. `PENDING_APPROVAL` bookings do not expire automatically (`PP-BOOK-S02`).
 
+### Booking and payment records
+
+Both replicas share `booking_db`. `Quote`, `Booking` and `Payment` are sharded by branch country and linked by `quoteId`. Each quote has at most one booking and one payment. `Payment` stores the unique `orderId` and `paymentReference`. `IdempotencyRecord` stores the result for request replay.
+
+On a paid rejection, lock the quote and record the [D-14 outcome](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured) before authorizing compensation. Verify the capture against the original quote and order. A different country or idempotency key does not make an unmatched capture safe to use. If PP cannot verify the binding, do not create a booking or authorize a refund. Reconcile the original checkout first.
+
 ### Response `201`
 `BookingSummary` (see `02-shared-types.md`), plus:
 
@@ -179,8 +185,9 @@ Only unused quote holds expire. `PENDING_APPROVAL` bookings do not expire automa
 | 400 | `VALIDATION_ERROR` | A malformed request alone does not authorize compensation. |
 | 422 | `BOOKING_QUANTITY_EXCEEDS_GUESTS` / `OCCUPANCY_EXCEEDED` | Follow D-14 if PP verifies a captured, unbound payment and records a terminal rejection. |
 | 409 | `QUOTE_EXPIRED` / `QUOTE_MISMATCH` / `MEMBERSHIP_ELIGIBILITY_CHANGED` | Same D-14 rule. Get a new quote before a new purchase. |
-| 409 | `ORDER_ALREADY_BOUND` / `QUOTE_ALREADY_CONSUMED` / `PAYMENT_ALREADY_BOUND` | `refundRequiredByPayer=false`. Reconcile the original order. |
-| 422 | `PAYMENT_AMOUNT_MISMATCH` / `PAYMENT_REFERENCE_MISMATCH` / `PAYMENT_NOT_CAPTURED` | Same D-14 rule. No successful capture means there is nothing to return. |
+| 409 | `ORDER_ALREADY_BOUND` / `QUOTE_ALREADY_CONSUMED` / `PAYMENT_ALREADY_BOUND` | `refundRequiredByPayer=false`. Reconcile the original order and any separate capture. |
+| 422 | `PAYMENT_AMOUNT_MISMATCH` | Follow D-14 only if the capture is verified, unbound and durably rejected. |
+| 422 | `PAYMENT_REFERENCE_MISMATCH` / `PAYMENT_NOT_CAPTURED` | No refund authorization: PP could not verify a matching, successful capture. |
 | 409 | `INSUFFICIENT_AVAILABILITY` | Same D-14 rule. |
 | 409 | `IDEMPOTENCY_CONFLICT` | `refundRequiredByPayer=false`. The original request still stands. |
 | 503 | `SERVICE_UNAVAILABLE` / `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | `refundRequiredByPayer=false`. Retry with the same idempotency key; the booking may already exist. |

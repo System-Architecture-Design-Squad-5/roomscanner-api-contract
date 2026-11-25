@@ -8,6 +8,7 @@ All notable changes to the squad API contract. Versioning follows the rules in `
 - Kafka resend policy: Clarified when callers resend under `INT-U03`, which outcomes responders cache, and how to handle late replies without repeating a write. Added a rating request recovery example. No wire schema changes.
 - Booking & payment design:
     - Clarified replay across idempotency keys.
+    - Aligned D-14 rejection and replay with the existing quote, payment and idempotency records. Extra captures require manual reconciliation. Refund flags require a verified rejection, and beneficiary refunds require a reference and status.
 
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 

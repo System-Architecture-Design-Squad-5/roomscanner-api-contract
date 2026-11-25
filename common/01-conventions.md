@@ -148,7 +148,7 @@ Every non-2xx response, and every Kafka response whose `status` is `ERROR`, uses
 | error.details | object[] | Optional. Field-level problems: `{ "field": string, "issue": string }` |
 | error.httpStatus | integer | Kafka responses only: the equivalent HTTP status (omitted on REST, where the status line carries it) |
 | error.refundRequiredByPayer | boolean | PP-OP-06 only: `true` when CP must refund a payment it already captured (Ultimo `ESCROW`, D-14) |
-| error.refundIssuedByBeneficiary | boolean | PP-OP-06 only, Medium `DIRECT`: `true` when PP has refunded the unbound capture from the provider's merchant account (D-14) |
+| error.refundIssuedByBeneficiary | boolean | PP-OP-06 only, Medium `DIRECT`: `true` once PP has a refund reference for the unbound capture. Read `returnPaymentStatus` for the outcome (D-14). |
 | error.returnPaymentReference | string | With `refundIssuedByBeneficiary=true`: the PayPal refund ID |
 | error.returnPaymentStatus | ReturnPaymentStatus | With `refundIssuedByBeneficiary=true`: `PENDING`, `SUCCEEDED` or `FAILED` |
 | error.requestId | string | Echo of `X-Request-Id` / Kafka `messageId` |

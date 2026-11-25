@@ -154,6 +154,7 @@ Naming: `rs.<domain>.<channel>.v<major>`. Each request topic is paired with a re
     - Do not cache a transient error or timeout as a final outcome. 
     - On replay, use a new response `messageId` and `timestamp`, copy the request's `correlationId` and `traceId`, and set `causationId`. For errors, set `error.requestId` to the current attempt's `messageId`.
 - For writes, check the durable record keyed by authenticated partner + operation + `idempotencyKey` before retrying the work. Replay a final outcome, if the write is still in flight or its outcome is uncertain, do not start another write or authorize compensation. Changed input returns `IDEMPOTENCY_CONFLICT`. [Quote, order and payment uniqueness and terminal rejections](../provider-portal/PP-03-bookings.md#pp-op-06-createbooking) survive Redis expiry.
+- For a D-14 rejection, read mutable refund status from the durable record on replay. Do not replay a cached refund status.
 
 **Example: CP recovers during a rating request.** PP sends `GET_RATING_STATISTICS`. CP's review shard is down, so CP replies with `ERROR` and `error.httpStatus: 503` without caching it as final. PP waits 1 s and resends with the same correlation ID, a new message ID and `attempt: 2`. The shard has recovered, so CP queries it again and replies `OK`. PP completes the request.
 

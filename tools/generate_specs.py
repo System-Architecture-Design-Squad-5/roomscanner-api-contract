@@ -349,20 +349,29 @@ S["Error"] = obj({
         "details": arr(ref("ErrorDetail")),
         "httpStatus": i("Kafka responses only: equivalent HTTP status"),
         "refundRequiredByPayer": b("CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)"),
-        "refundIssuedByBeneficiary": b("CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider's merchant account (Decision D-14)"),
-        "returnPaymentReference": s("With refundIssuedByBeneficiary=true: the gateway refund ID"),
+        "refundIssuedByBeneficiary": b("CreateBooking only, Medium DIRECT: PP has a refund reference for the unbound capture. Read returnPaymentStatus for the outcome (Decision D-14)."),
+        "returnPaymentReference": s("With refundIssuedByBeneficiary=true: the gateway refund ID", pattern=r"\S"),
         "returnPaymentStatus": ref("ReturnPaymentStatus"),
         "availableQuantity": i("INSUFFICIENT_AVAILABILITY only", minimum=0),
         "requestId": s("Echo of X-Request-Id or the Kafka messageId"),
         "timestamp": dt(),
     }, ["code", "message", "requestId", "timestamp"]),
 }, ["error"], "Standard error body (01-conventions.md Section 5).")
-# D-14: only one side compensates, and a beneficiary refund must carry its reference and status.
-S["Error"]["properties"]["error"]["anyOf"] = [
-    {"not": {"required": ["refundIssuedByBeneficiary"]}},
-    {"properties": {"refundIssuedByBeneficiary": {"enum": [False]}}},
-    {"properties": {"refundRequiredByPayer": {"enum": [False]}},
-     "required": ["returnPaymentReference", "returnPaymentStatus"]},
+# Only a D-14 terminal rejection can instruct CP to refund or report a PP refund.
+S["Error"]["properties"]["error"]["allOf"] = [
+    {"anyOf": [
+        obj({"refundIssuedByBeneficiary": {"enum": [False]}}, **absent("returnPaymentReference", "returnPaymentStatus")),
+        obj({"refundRequiredByPayer": {"enum": [False]}, "refundIssuedByBeneficiary": {"enum": [True]},
+             "returnPaymentStatus": {"enum": ["PENDING", "SUCCEEDED", "FAILED"]}},
+            ["refundRequiredByPayer", "refundIssuedByBeneficiary", "returnPaymentReference", "returnPaymentStatus"]),
+    ]},
+    {"anyOf": [
+        obj({"refundRequiredByPayer": {"enum": [False]}, "refundIssuedByBeneficiary": {"enum": [False]}}),
+        obj({"code": {"enum": ["QUOTE_EXPIRED", "QUOTE_MISMATCH", "MEMBERSHIP_ELIGIBILITY_CHANGED",
+                               "INSUFFICIENT_AVAILABILITY", "BOOKING_QUANTITY_EXCEEDS_GUESTS",
+                               "OCCUPANCY_EXCEEDED", "PAYMENT_AMOUNT_MISMATCH"]},
+             "httpStatus": {"enum": [409, 422]}}),
+    ]},
 ]
 
 S["TokenRequest"] = obj({
@@ -1017,7 +1026,7 @@ pp_paths["/bookings"] = {"post": op(
     "The quote, CP order and gateway payment may bind to only one booking. Replay an identical request before checking quote expiry, even if its key or transport changed. "
     "Re-verify Premium eligibility at creation (D-06). "
     "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW). At Medium (DIRECT) PP refunds the "
-    "capture from the provider's merchant account itself and sets refundIssuedByBeneficiary=true (D-14). Ambiguous timeouts and already-bound payments trigger neither. "
+    "capture from the provider's merchant account and reports its reference and status (D-14). A timeout or conflict alone does not authorize a refund. "
     "Served by the primary or redundant booking instance (PP-BOOK-U01). The Idempotency-Key makes retries after failover safe.",
     "Bookings", "booking:write", [P("IdempotencyKey")],
     body(ref("CreateBookingRequest"), {"escrow": ex(BOOK_REQ, "Ultimo escrow payment")}),

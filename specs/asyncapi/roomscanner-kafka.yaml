@@ -4418,11 +4418,12 @@ components:
               description: 'CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)'
             refundIssuedByBeneficiary:
               type: boolean
-              description: 'CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider''s merchant
-                account (Decision D-14)'
+              description: 'CreateBooking only, Medium DIRECT: PP has a refund reference for the unbound capture. Read returnPaymentStatus
+                for the outcome (Decision D-14).'
             returnPaymentReference:
               type: string
               description: 'With refundIssuedByBeneficiary=true: the gateway refund ID'
+              pattern: \S
             returnPaymentStatus:
               $ref: '#/components/schemas/ReturnPaymentStatus'
             availableQuantity:
@@ -4441,21 +4442,61 @@ components:
           - message
           - requestId
           - timestamp
-          anyOf:
-          - not:
+          allOf:
+          - anyOf:
+            - type: object
+              properties:
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+              not:
+                anyOf:
+                - required:
+                  - returnPaymentReference
+                - required:
+                  - returnPaymentStatus
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - true
+                returnPaymentStatus:
+                  enum:
+                  - PENDING
+                  - SUCCEEDED
+                  - FAILED
               required:
+              - refundRequiredByPayer
               - refundIssuedByBeneficiary
-          - properties:
-              refundIssuedByBeneficiary:
-                enum:
-                - false
-          - properties:
-              refundRequiredByPayer:
-                enum:
-                - false
-            required:
-            - returnPaymentReference
-            - returnPaymentStatus
+              - returnPaymentReference
+              - returnPaymentStatus
+          - anyOf:
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+            - type: object
+              properties:
+                code:
+                  enum:
+                  - QUOTE_EXPIRED
+                  - QUOTE_MISMATCH
+                  - MEMBERSHIP_ELIGIBILITY_CHANGED
+                  - INSUFFICIENT_AVAILABILITY
+                  - BOOKING_QUANTITY_EXCEEDS_GUESTS
+                  - OCCUPANCY_EXCEEDED
+                  - PAYMENT_AMOUNT_MISMATCH
+                httpStatus:
+                  enum:
+                  - 409
+                  - 422
       required:
       - error
     Comment:
