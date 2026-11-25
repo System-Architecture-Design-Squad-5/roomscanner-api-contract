@@ -206,11 +206,36 @@ class ContractValidation(unittest.TestCase):
         base = {"code": "QUOTE_EXPIRED", "message": "m", "requestId": "r", "timestamp": "2026-12-01T03:00:01Z"}
         ok = dict(base, refundRequiredByPayer=False, refundIssuedByBeneficiary=True,
                   returnPaymentReference="PAYPAL-REFUND-TEST", returnPaymentStatus="SUCCEEDED")
-        self.assertTrue(check.is_valid({"error": ok}))
+        for status in ("PENDING", "SUCCEEDED", "FAILED"):
+            with self.subTest(status=status):
+                self.assertTrue(check.is_valid({"error": dict(ok, returnPaymentStatus=status)}))
         self.assertTrue(check.is_valid({"error": dict(base, refundRequiredByPayer=True)}))
-        self.assertFalse(check.is_valid({"error": dict(ok, refundRequiredByPayer=True)}))
-        missing = dict(ok); del missing["returnPaymentReference"]
-        self.assertFalse(check.is_valid({"error": missing}))
+        for invalid in (
+            dict(ok, refundRequiredByPayer=True),
+            dict(ok, refundIssuedByBeneficiary=False),
+            dict(ok, returnPaymentReference=""),
+            dict(ok, returnPaymentReference=" "),
+            dict(ok, returnPaymentStatus="NOT_REQUIRED"),
+            {k: v for k, v in ok.items() if k != "returnPaymentReference"},
+        ):
+            self.assertFalse(check.is_valid({"error": invalid}), invalid)
+
+    def test_refund_flags_are_not_allowed_on_conflicts_or_uncertain_outcomes(self):
+        doc = DOCS[FILES[0]]
+        check = validator(doc, doc["components"]["schemas"]["Error"])
+        error = {"message": "m", "requestId": "r", "timestamp": "2026-12-01T03:00:01Z"}
+        for code in ("ORDER_ALREADY_BOUND", "QUOTE_ALREADY_CONSUMED", "PAYMENT_ALREADY_BOUND", "IDEMPOTENCY_CONFLICT",
+                     "PAYMENT_REFERENCE_MISMATCH", "PAYMENT_NOT_CAPTURED", "SERVICE_UNAVAILABLE"):
+            with self.subTest(code=code):
+                self.assertTrue(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=False)}))
+                self.assertFalse(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=True)}))
+                self.assertFalse(check.is_valid({"error": dict(error, code=code, refundRequiredByPayer=False,
+                                                               refundIssuedByBeneficiary=True, returnPaymentReference="re_test",
+                                                               returnPaymentStatus="PENDING")}))
+        kafka_error = example("BookingResponse", 1)
+        self.assert_valid("BookingResponse", kafka_error)
+        kafka_error["payload"]["error"]["httpStatus"] = 503
+        self.assert_invalid("BookingResponse", kafka_error)
 
     def test_reversal_outcome_requires_reference_or_failure_cause(self):
         schema = ASYNC["components"]["schemas"]["BookingPaymentStatus"]
@@ -308,6 +333,45 @@ class ContractValidation(unittest.TestCase):
         data = example("BookingResponse")
         data["payload"]["payment"]["escrowStatus"] = "RELEASED"
         self.assert_invalid("BookingResponse", data)
+
+    def test_escrow_examples_keep_approval_and_release_separate(self):
+        events = {ex["name"]: ex["payload"]["payload"] for ex in MESSAGES["BookingStatusEvent"]["examples"]}
+        approval = events["confirmed"]
+        approved_payment = approval["booking"]["payment"]
+        self.assertEqual(approved_payment["escrowStatus"], "RELEASED")
+        self.assertEqual(approved_payment["releaseReference"], events["escrowReleased"]["booking"]["payment"]["releaseReference"])
+        for name, status in [("escrowReleased", "RELEASED"), ("escrowReleaseFailedAlternative", "RELEASE_FAILED")]:
+            with self.subTest(example=name):
+                update = events[name]
+                payment = update["booking"]["payment"]
+                self.assertEqual(update["eventType"], "ESCROW_RELEASE_UPDATED")
+                self.assertEqual(update["sequence"], approval["sequence"] + 1)
+                self.assertEqual(update["booking"]["bookingId"], approval["booking"]["bookingId"])
+                self.assertEqual(update["booking"]["status"], "CONFIRMED")
+                self.assertEqual(payment["orderId"], approved_payment["orderId"])
+                self.assertEqual(payment["escrowStatus"], status)
+                self.assertEqual(payment["returnPaymentStatus"], "NOT_REQUIRED")
+                self.assertEqual("releaseReference" in payment, status == "RELEASED")
+                self.assertNotIn("emailData", update)
+
+    def test_booking_event_rejects_wrong_escrow_states(self):
+        events = {ex["name"]: ex["payload"] for ex in MESSAGES["BookingStatusEvent"]["examples"]}
+        approval = copy.deepcopy(events["confirmed"])
+        payment = approval["payload"]["booking"]["payment"]
+        del payment["releaseReference"]
+        for status in ("RELEASE_PENDING", "RELEASE_FAILED"):
+            with self.subTest(status=status):
+                payment["escrowStatus"] = status
+                self.assert_valid("BookingStatusEvent", approval)
+        payment["escrowStatus"] = "HELD"
+        self.assert_invalid("BookingStatusEvent", approval)
+
+        update = copy.deepcopy(events["escrowReleased"])
+        update["payload"]["booking"]["payment"] = {
+            "mode": "DIRECT", "originalPaymentReference": "PAYPAL-CAPTURE-7XK12345AB",
+            "returnPaymentStatus": "NOT_REQUIRED",
+        }
+        self.assert_invalid("BookingStatusEvent", update)
 
     def test_eligible_review_has_provider_and_stay_evidence(self):
         data = next(copy.deepcopy(ex["payload"]) for ex in MESSAGES["BookingResponse"]["examples"]

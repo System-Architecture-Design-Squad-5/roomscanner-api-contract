@@ -46,15 +46,23 @@
 ### PP validation order
 1. Partner auth + scope → 401/403
 2. Schema → `400 VALIDATION_ERROR`
-3. Resolve the durable idempotency record for authenticated partner + `CREATE_BOOKING` + `Idempotency-Key` / Kafka `idempotencyKey`. Same key and normalized body return the original committed result **before** checking quote expiry. Different body → `409 IDEMPOTENCY_CONFLICT`. An in-flight or uncertain outcome → retryable `503 SERVICE_UNAVAILABLE`, `refundRequiredByPayer=false`.
-4. Check the business identities: `(partner, payment.orderId)`, `quoteId` and `(gateway, paymentReference)` may each bind to only one booking, including archived bookings. An identical business request using another transport/key returns the existing booking. Reuse for different booking inputs → `409 ORDER_ALREADY_BOUND`, `QUOTE_ALREADY_CONSUMED` or `PAYMENT_ALREADY_BOUND`, with `refundRequiredByPayer=false`; reconcile the original order instead of refunding a payment already used by it.
+3. Look up the durable idempotency record by authenticated partner, `CREATE_BOOKING` and the HTTP or Kafka idempotency key. Do this **before** checking quote expiry. Same key and normalized body: replay the recorded result. Different body: `409 IDEMPOTENCY_CONFLICT`. In flight or uncertain: retryable `503 SERVICE_UNAVAILABLE` with `refundRequiredByPayer=false`.
+4. Check the quote and its payment bindings before validating expiry. If the quote, order and payment match and the normalized request hash matches the original `IdempotencyRecord` for this partner and operation, replay the committed booking or recorded rejection even if the key or transport changed. If the original request is still in flight, return retryable `503` without authorizing a refund. If the input differs, return `409 QUOTE_ALREADY_CONSUMED`, `ORDER_ALREADY_BOUND` or `PAYMENT_ALREADY_BOUND`. Workflow archiving does not clear these bindings.
 5. Validate `quantity ≤ adults + children`, occupancy, and the quote's customer, room, dates, quantity, adult/child counts and payment mode. The quote must be active, unconsumed and owned by `customer.customerId`. Failure → `422 BOOKING_QUANTITY_EXCEEDS_GUESTS`, `422 OCCUPANCY_EXCEEDED`, `409 QUOTE_EXPIRED` or `409 QUOTE_MISMATCH`.
 6. If the quote applied a Premium discount, call CP-OP-02 again and require active Premium at booking creation (D-06). Membership expiry/change → `409 MEMBERSHIP_ELIGIBILITY_CHANGED`; an unavailable membership service → retryable `503 MEMBERSHIP_VERIFICATION_UNAVAILABLE`. Never silently remove the discount or charge a supplement after capture. Terminal loss of eligibility requires a new quote, and compensation (by CP or, at Medium, by PP) only after rejection is durable (D-14).
 7. Require `payment.amount` (amount **and currency**) to equal the quote total. At Medium/Ultimo, verify the payment directly with the configured gateway. Bind gateway metadata to `quoteId`, `customerId` and CP `orderId`; verify captured amount/currency and that the payment has not been refunded or bound elsewhere. For DIRECT, verify the provider merchant as payee. For ESCROW, verify the shared squad platform owns the PaymentIntent, `chargeReference` is that intent's captured charge, and the intended connected provider matches the quote (PP-05). Failure → `422 PAYMENT_AMOUNT_MISMATCH`, `PAYMENT_REFERENCE_MISMATCH` or `PAYMENT_NOT_CAPTURED`. Never trust the submitted state alone.
-8. In one booking-service transaction, lock the quote and authoritative inventory-allocation rows, recheck expiry/capacity and uniqueness, convert the hold into a reservation, consume the quote, and persist the `PENDING_APPROVAL` booking, discount snapshot, CP order/payment bindings and idempotency outcome. Unique constraints arbitrate concurrent requests with different keys. The inventory allocations/holds and ledger belong to this service's store; do not perform a transaction across another microservice's tables. A lost hold/capacity → `409 INSUFFICIENT_AVAILABILITY`.
+8. In the booking service's database, lock the quote and inventory rows. Recheck the bindings (step 4), expiry and capacity before converting the hold to a reservation. In that same transaction, consume the quote and save the `PENDING_APPROVAL` booking, discount snapshot, CP order and payment bindings, and idempotency outcome. If a unique-key conflict occurs, look up the winning record and apply step 4 instead of creating a second booking. Do not write to another service's tables in this transaction. If the hold or capacity is gone, return `409 INSUFFICIENT_AVAILABILITY`.
 9. Return the committed booking; creation is acknowledged by the response. Subsequent lifecycle transitions use the transactional outbox. Booking-service replicas use the same authoritative booking data and uniqueness constraints.
 
-**Compensation rule:** compensation is permitted only after PP durably records a terminal rejection and confirms the captured payment/order is not bound to a booking. Who compensates follows D-14: at Ultimo (`ESCROW`) PP returns `refundRequiredByPayer=true` and CP refunds its own platform charge; at Medium (`DIRECT`) the capture sits in the provider's PayPal account, so PP refunds it before replying and returns `refundRequiredByPayer=false`, `refundIssuedByBeneficiary=true`, `returnPaymentReference` and `returnPaymentStatus`. Atomically mark that quote, CP order and gateway payment as `REJECTED_COMPENSATION_AUTHORIZED` in the durable ledger: no later request, even with a different idempotency key or a renewed membership, may consume those identities. Identical replays return the recorded rejection; a new purchase requires a new quote/order/payment. This closes the create-versus-compensate race. Schema/auth failures, dependency timeouts, in-flight outcomes and duplicate bindings do not by themselves prove this; they must not trigger an automatic refund. A transient failure is retried/reconciled with the original key. See PP-OP-08's `orderId` lookup. Pending **bookings** never expire automatically; only unconsumed quote holds expire.
+**If booking creation fails after capture:** PP must verify that the payment and order are unbound and record a durable rejection before either team returns the money. [D-14](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured) defines which team acts and how PP records the quote, order and payment so none can be reused. A schema or auth error, timeout, in-flight result or duplicate binding is not enough to authorize a refund. Retry an uncertain write with the original key or [look up the CP order](#pp-op-08-listcustomerbookings).
+
+Only unused quote holds expire. `PENDING_APPROVAL` bookings do not expire automatically (`PP-BOOK-S02`).
+
+### Booking and payment records
+
+Both replicas share `booking_db`. `Quote`, `Booking` and `Payment` are sharded by branch country and linked by `quoteId`. Each quote has at most one booking and one payment. `Payment` stores the unique `orderId` and `paymentReference`. `IdempotencyRecord` stores the result for request replay.
+
+On a paid rejection, lock the quote and record the [D-14 outcome](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured) before authorizing compensation. Verify the capture against the original quote and order. A different country or idempotency key does not make an unmatched capture safe to use. If PP cannot verify the binding, do not create a booking or authorize a refund. Reconcile the original checkout first.
 
 ### Response `201`
 `BookingSummary` (see `02-shared-types.md`), plus:
@@ -172,21 +180,20 @@
 | Ultimo | as in the example | Verifies the capture is held in the platform balance. On approval it releases the funds; on cancellation it refunds them (PP-05). |
 
 ### Errors
-| HTTP | Code | `refundRequiredByPayer` |
+| HTTP | Code | What to do |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | true if already paid |
-| 422 | `BOOKING_QUANTITY_EXCEEDS_GUESTS` | true if already paid |
-| 422 | `OCCUPANCY_EXCEEDED` | true only after durable terminal rejection and verified unbound capture |
-| 409 | `QUOTE_EXPIRED` / `QUOTE_MISMATCH` | true if already paid |
-| 409 | `MEMBERSHIP_ELIGIBILITY_CHANGED` | true only after durable terminal rejection and verified unbound capture |
-| 409 | `ORDER_ALREADY_BOUND` / `QUOTE_ALREADY_CONSUMED` / `PAYMENT_ALREADY_BOUND` | false; reconcile the original booking |
-| 422 | `PAYMENT_AMOUNT_MISMATCH` / `PAYMENT_REFERENCE_MISMATCH` / `PAYMENT_NOT_CAPTURED` | true only for a verified captured, unbound payment after durable terminal rejection; false if there is no successful capture to return |
-| 409 | `INSUFFICIENT_AVAILABILITY` | true if already paid |
-| 409 | `IDEMPOTENCY_CONFLICT` | false (the original request still stands) |
-| 503 | `SERVICE_UNAVAILABLE` / `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | false. **Retry with the same Idempotency-Key**; the booking may already exist. |
-| 401 / 403 / 429 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` / `RATE_LIMITED` | false (request not processed; write limit: 30 requests per 60 s) |
+| 400 | `VALIDATION_ERROR` | A malformed request alone does not authorize compensation. |
+| 422 | `BOOKING_QUANTITY_EXCEEDS_GUESTS` / `OCCUPANCY_EXCEEDED` | Follow D-14 if PP verifies a captured, unbound payment and records a terminal rejection. |
+| 409 | `QUOTE_EXPIRED` / `QUOTE_MISMATCH` / `MEMBERSHIP_ELIGIBILITY_CHANGED` | Same D-14 rule. Get a new quote before a new purchase. |
+| 409 | `ORDER_ALREADY_BOUND` / `QUOTE_ALREADY_CONSUMED` / `PAYMENT_ALREADY_BOUND` | `refundRequiredByPayer=false`. Reconcile the original order and any separate capture. |
+| 422 | `PAYMENT_AMOUNT_MISMATCH` | Follow D-14 only if the capture is verified, unbound and durably rejected. |
+| 422 | `PAYMENT_REFERENCE_MISMATCH` / `PAYMENT_NOT_CAPTURED` | No refund authorization: PP could not verify a matching, successful capture. |
+| 409 | `INSUFFICIENT_AVAILABILITY` | Same D-14 rule. |
+| 409 | `IDEMPOTENCY_CONFLICT` | `refundRequiredByPayer=false`. The original request still stands. |
+| 503 | `SERVICE_UNAVAILABLE` / `MEMBERSHIP_VERIFICATION_UNAVAILABLE` | `refundRequiredByPayer=false`. Retry with the same idempotency key; the booking may already exist. |
+| 401 / 403 / 429 | `PARTNER_UNAUTHENTICATED` / `PARTNER_FORBIDDEN` / `RATE_LIMITED` | `refundRequiredByPayer=false`. Request not processed. Write limit: 30 requests per 60 s. |
 
-At Medium (`DIRECT`), read every `true` in this column as "PP refunds the capture and sets `refundIssuedByBeneficiary=true`" instead (D-14). The `true if already paid` entries above also require the durable, unbound terminal-rejection check. In particular, a malformed request or a failed dependency response is not sufficient evidence that compensation is safe.
+CP refunds only when PP returns `refundRequiredByPayer=true` for escrow. For direct payments, PP handles the return of an unbound capture and reports its outcome using the [D-14 fields](../common/03-agreed-decisions.md#d-14-booking-rejected-after-payment-was-captured).
 
 ---
 

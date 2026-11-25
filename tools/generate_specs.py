@@ -349,20 +349,29 @@ S["Error"] = obj({
         "details": arr(ref("ErrorDetail")),
         "httpStatus": i("Kafka responses only: equivalent HTTP status"),
         "refundRequiredByPayer": b("CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)"),
-        "refundIssuedByBeneficiary": b("CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider's merchant account (Decision D-14)"),
-        "returnPaymentReference": s("With refundIssuedByBeneficiary=true: the gateway refund ID"),
+        "refundIssuedByBeneficiary": b("CreateBooking only, Medium DIRECT: PP has a refund reference for the unbound capture. Read returnPaymentStatus for the outcome (Decision D-14)."),
+        "returnPaymentReference": s("With refundIssuedByBeneficiary=true: the gateway refund ID", pattern=r"\S"),
         "returnPaymentStatus": ref("ReturnPaymentStatus"),
         "availableQuantity": i("INSUFFICIENT_AVAILABILITY only", minimum=0),
         "requestId": s("Echo of X-Request-Id or the Kafka messageId"),
         "timestamp": dt(),
     }, ["code", "message", "requestId", "timestamp"]),
 }, ["error"], "Standard error body (01-conventions.md Section 5).")
-# D-14: only one side compensates, and a beneficiary refund must carry its reference and status.
-S["Error"]["properties"]["error"]["anyOf"] = [
-    {"not": {"required": ["refundIssuedByBeneficiary"]}},
-    {"properties": {"refundIssuedByBeneficiary": {"enum": [False]}}},
-    {"properties": {"refundRequiredByPayer": {"enum": [False]}},
-     "required": ["returnPaymentReference", "returnPaymentStatus"]},
+# Only a D-14 terminal rejection can instruct CP to refund or report a PP refund.
+S["Error"]["properties"]["error"]["allOf"] = [
+    {"anyOf": [
+        obj({"refundIssuedByBeneficiary": {"enum": [False]}}, **absent("returnPaymentReference", "returnPaymentStatus")),
+        obj({"refundRequiredByPayer": {"enum": [False]}, "refundIssuedByBeneficiary": {"enum": [True]},
+             "returnPaymentStatus": {"enum": ["PENDING", "SUCCEEDED", "FAILED"]}},
+            ["refundRequiredByPayer", "refundIssuedByBeneficiary", "returnPaymentReference", "returnPaymentStatus"]),
+    ]},
+    {"anyOf": [
+        obj({"refundRequiredByPayer": {"enum": [False]}, "refundIssuedByBeneficiary": {"enum": [False]}}),
+        obj({"code": {"enum": ["QUOTE_EXPIRED", "QUOTE_MISMATCH", "MEMBERSHIP_ELIGIBILITY_CHANGED",
+                               "INSUFFICIENT_AVAILABILITY", "BOOKING_QUANTITY_EXCEEDS_GUESTS",
+                               "OCCUPANCY_EXCEEDED", "PAYMENT_AMOUNT_MISMATCH"]},
+             "httpStatus": {"enum": [409, 422]}}),
+    ]},
 ]
 
 S["TokenRequest"] = obj({
@@ -525,7 +534,18 @@ S["BookingStatusEvent"]["oneOf"] = [
      **({"required": ["emailData"]} if event_type != "BOOKING_COMPLETED" else {})}
     for event_type, status in [("BOOKING_CONFIRMED", "CONFIRMED"),
                                ("BOOKING_CANCELLED", "CANCELLED"), ("BOOKING_COMPLETED", "COMPLETED")]
-] + [{"properties": {"eventType": {"enum": ["RETURN_PAYMENT_UPDATED", "ESCROW_RELEASE_UPDATED"]}}}]
+] + [
+    obj({"eventType": {"enum": ["RETURN_PAYMENT_UPDATED"]}}),
+    obj({"eventType": {"enum": ["ESCROW_RELEASE_UPDATED"]},
+         "booking": obj({"payment": obj({"mode": {"enum": ["ESCROW"]},
+                                          "escrowStatus": {"enum": ["RELEASED", "RELEASE_FAILED"]}})})},
+        **absent("emailData")),
+]
+S["BookingStatusEvent"]["not"] = obj({
+    "eventType": {"enum": ["BOOKING_CONFIRMED"]},
+    "booking": obj({"payment": obj({"mode": {"enum": ["ESCROW"]},
+                                      "escrowStatus": {"enum": ["HELD", "REFUNDED"]}})}),
+})
 
 S["BookingEventAck"] = obj({"eventId": uuid(), "accepted": b(), "duplicate": b()}, ["eventId", "accepted", "duplicate"])
 
@@ -701,7 +721,7 @@ SUMMARY = dict(bookingId=IDS["booking"], bookingCode="RS-VN-24F7Q", status="PEND
                createdAt="2026-12-01T03:02:12Z", updatedAt="2026-12-01T03:02:12Z")
 BOOKING = dict(SUMMARY, reviewableFrom="2027-04-10", receptionistContact={"branchName": "Riverside Homestay Hoi An", "branchPhone": "+842353861234"})
 CONFIRMED = dict(SUMMARY, status="CONFIRMED", updatedAt="2026-12-01T09:15:40Z",
-                 payment={"mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED",
+                 payment={"mode": "ESCROW", "orderId": IDS["order"], "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED",
                           "releaseReference": "tr_1QXyzTEST0001", "returnPaymentStatus": "NOT_REQUIRED"})
 CANCELLED = dict(SUMMARY, status="CANCELLED", updatedAt="2026-12-03T05:00:00Z",
                  cancellation={"cancelledBy": "CUSTOMER", "reason": "Change of travel plans", "cancelledAt": "2026-12-03T05:00:00Z"},
@@ -1013,11 +1033,12 @@ pp_paths["/quotes"] = {"post": op(
 pp_paths["/bookings"] = {"post": op(
     "createBooking", "PP-OP-06", "Create booking",
     "Stores the authoritative reservation as PENDING_APPROVAL and reserves the rooms with no automatic expiry. At Medium and Ultimo PP verifies the "
-    "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer; "
-    "quote, CP order and gateway payment may bind to only one booking. Re-verify Premium eligibility at creation (D-06). "
-    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW); at Medium (DIRECT) PP refunds the "
-    "capture from the provider's merchant account itself and sets refundIssuedByBeneficiary=true (D-14). Ambiguous timeouts and already-bound payments trigger neither. "
-    "Served by the primary or redundant booking instance (PP-BOOK-U01); the Idempotency-Key makes retries after failover safe.",
+    "captured payment directly with the gateway. Durable replay checks precede quote expiry checks. The quote must belong to the customer. "
+    "The quote, CP order and gateway payment may bind to only one booking. Replay an identical request before checking quote expiry, even if its key or transport changed. "
+    "Re-verify Premium eligibility at creation (D-06). "
+    "Terminal rejection after a captured, unbound payment carries refundRequiredByPayer=true at Ultimo (ESCROW). At Medium (DIRECT) PP refunds the "
+    "capture from the provider's merchant account and reports its reference and status (D-14). A timeout or conflict alone does not authorize a refund. "
+    "Served by the primary or redundant booking instance (PP-BOOK-U01). The Idempotency-Key makes retries after failover safe.",
     "Bookings", "booking:write", [P("IdempotencyKey")],
     body(ref("CreateBookingRequest"), {"escrow": ex(BOOK_REQ, "Ultimo escrow payment")}),
     {**ok("Booking created.", ref("Booking"), {"escrow": ex(BOOKING)}, code="201"),
@@ -1167,7 +1188,10 @@ cp_paths["/booking-events"] = {"post": op(
     "Webhook that PP calls for every booking transition (PP-OP-11). CP acknowledges within 5 s and does email and socket work asynchronously. "
     "CP de-duplicates on eventId. The X-RS-Signature header carries t=<unixSeconds>,v1=HMAC-SHA256(secret, t + '.' + rawBody); "
     "requests older than 300 s are rejected.", "Booking events", "booking-event:write", None,
-    body(ref("BookingStatusEvent"), {"confirmed": ex(BOOKING_EVENT, "Booking confirmed, escrow released")}),
+    body(ref("BookingStatusEvent"), {"confirmed": ex(dict(BOOKING_EVENT, booking=dict(CONFIRMED, payment={
+        "mode": "DIRECT", "orderId": IDS["order"], "originalPaymentReference": "PAYPAL-CAPTURE-7XK12345AB",
+        "returnPaymentStatus": "NOT_REQUIRED",
+    })), "Booking confirmed after direct payment")}),
     {**ok("Event accepted.", ref("BookingEventAck"), {"default": ex({"eventId": BOOKING_EVENT["eventId"], "accepted": True, "duplicate": False})}),
      **std_errors("400", "401", "403", "429", "503")},
     "replaced by rs.booking.events.v1 (PP -> CP)", "PP-MONEY-S01, M03; CP-MONEY-S01, M02",
@@ -1423,8 +1447,14 @@ _more("BookingStatusEvent", [
 _more("BookingStatusEvent", [
     ("escrowReleased", env_example("ESCROW_RELEASE_UPDATED", "PP",
         {"eventId": "11112222-0000-4000-8000-000000000006", "eventType": "ESCROW_RELEASE_UPDATED", "occurredAt": "2026-12-01T09:15:45Z",
-         "sequence": 3, "booking": CONFIRMED},
-        correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e6", ts="2026-12-01T09:15:45Z")),
+         "sequence": 3, "booking": dict(CONFIRMED, updatedAt="2026-12-01T09:15:45Z")},
+         correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e6", ts="2026-12-01T09:15:45Z")),
+    ("escrowReleaseFailedAlternative", env_example("ESCROW_RELEASE_UPDATED", "PP",
+        {"eventId": "11112222-0000-4000-8000-000000000009", "eventType": "ESCROW_RELEASE_UPDATED", "occurredAt": "2026-12-01T09:15:45Z",
+         "sequence": 3, "booking": dict(CONFIRMED, updatedAt="2026-12-01T09:15:45Z",
+                                       payment=dict(SUMMARY["payment"], escrowStatus="RELEASE_FAILED",
+                                                    failureCause="The connected account cannot receive transfers."))},
+         correlation=IDS["booking"], mid="11112222-0000-4000-8000-0000000000e9", ts="2026-12-01T09:15:45Z")),
     ("completed", env_example("BOOKING_COMPLETED", "PP",
         {"eventId": "11112222-0000-4000-8000-000000000007", "eventType": "BOOKING_COMPLETED", "occurredAt": "2027-04-13T19:00:00Z",
          "sequence": 4, "booking": dict(CONFIRMED, status="COMPLETED", updatedAt="2027-04-13T19:00:00Z")},

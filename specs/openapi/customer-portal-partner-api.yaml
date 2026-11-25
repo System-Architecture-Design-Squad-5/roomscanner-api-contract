@@ -664,10 +664,9 @@ paths:
                         amountMinor: 12750
                         currency: USD
                     payment:
-                      mode: ESCROW
-                      originalPaymentReference: pi_3QAbCdTEST0001
-                      escrowStatus: RELEASED
-                      releaseReference: tr_1QXyzTEST0001
+                      mode: DIRECT
+                      orderId: 55aa66bb-0000-4000-8000-000000000701
+                      originalPaymentReference: PAYPAL-CAPTURE-7XK12345AB
                       returnPaymentStatus: NOT_REQUIRED
                     createdAt: '2026-12-01T03:02:12Z'
                     updatedAt: '2026-12-01T09:15:40Z'
@@ -687,7 +686,7 @@ paths:
                     total:
                       amountMinor: 12750
                       currency: USD
-                summary: Booking confirmed, escrow released
+                summary: Booking confirmed after direct payment
       responses:
         '200':
           description: Event accepted.
@@ -1492,11 +1491,12 @@ components:
               description: 'CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)'
             refundIssuedByBeneficiary:
               type: boolean
-              description: 'CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider''s merchant
-                account (Decision D-14)'
+              description: 'CreateBooking only, Medium DIRECT: PP has a refund reference for the unbound capture. Read returnPaymentStatus
+                for the outcome (Decision D-14).'
             returnPaymentReference:
               type: string
               description: 'With refundIssuedByBeneficiary=true: the gateway refund ID'
+              pattern: \S
             returnPaymentStatus:
               $ref: '#/components/schemas/ReturnPaymentStatus'
             availableQuantity:
@@ -1515,21 +1515,61 @@ components:
           - message
           - requestId
           - timestamp
-          anyOf:
-          - not:
+          allOf:
+          - anyOf:
+            - type: object
+              properties:
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+              not:
+                anyOf:
+                - required:
+                  - returnPaymentReference
+                - required:
+                  - returnPaymentStatus
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - true
+                returnPaymentStatus:
+                  enum:
+                  - PENDING
+                  - SUCCEEDED
+                  - FAILED
               required:
+              - refundRequiredByPayer
               - refundIssuedByBeneficiary
-          - properties:
-              refundIssuedByBeneficiary:
-                enum:
-                - false
-          - properties:
-              refundRequiredByPayer:
-                enum:
-                - false
-            required:
-            - returnPaymentReference
-            - returnPaymentStatus
+              - returnPaymentReference
+              - returnPaymentStatus
+          - anyOf:
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+            - type: object
+              properties:
+                code:
+                  enum:
+                  - QUOTE_EXPIRED
+                  - QUOTE_MISMATCH
+                  - MEMBERSHIP_ELIGIBILITY_CHANGED
+                  - INSUFFICIENT_AVAILABILITY
+                  - BOOKING_QUANTITY_EXCEEDS_GUESTS
+                  - OCCUPANCY_EXCEEDED
+                  - PAYMENT_AMOUNT_MISMATCH
+                httpStatus:
+                  enum:
+                  - 409
+                  - 422
       required:
       - error
     TokenRequest:
@@ -1733,11 +1773,52 @@ components:
               status:
                 enum:
                 - COMPLETED
-      - properties:
+      - type: object
+        properties:
           eventType:
             enum:
             - RETURN_PAYMENT_UPDATED
+      - type: object
+        properties:
+          eventType:
+            enum:
             - ESCROW_RELEASE_UPDATED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - RELEASED
+                    - RELEASE_FAILED
+        not:
+          anyOf:
+          - required:
+            - emailData
+      not:
+        type: object
+        properties:
+          eventType:
+            enum:
+            - BOOKING_CONFIRMED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - HELD
+                    - REFUNDED
     BookingEventAck:
       type: object
       properties:

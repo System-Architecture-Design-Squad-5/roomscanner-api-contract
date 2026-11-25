@@ -2,6 +2,16 @@
 
 All notable changes to the squad API contract. Versioning follows the rules in `README.md` Section 5 (MAJOR for breaking changes, MINOR for additive changes, PATCH for wording).
 
+## [Unreleased] - Documentation review (2026-11-25)
+
+- Added direct links to the shared conventions and shortened the README, Kafka and booking notes.
+- Expanded the pending PMS draft with typed operations and JSON examples, provider entitlement, owner routing and broker rejection rules. Cross-squad checkout remains gated. No binding CP-PP changes.
+- Kafka resend policy: Clarified when callers resend under `INT-U03`, which outcomes responders cache, and how to handle late replies without repeating a write. Added a rating request recovery example. No wire schema changes.
+- Booking & payment design:
+    - Clarified replay across idempotency keys.
+    - Aligned D-14 rejection and replay with the existing quote, payment and idempotency records. Extra captures require manual reconciliation. Refund flags require a verified rejection, and beneficiary refunds require a reference and status.
+    - Aligned confirmation and release events with the booking trace. Defined cancellation during transfer, retained per-booking event ordering, and used the CP order ID for Stripe `transfer_group`.
+
 ## [Unreleased] - 2026-11-24 (remaining CP–PP consistency fixes)
 
 ### Fixed

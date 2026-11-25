@@ -17,10 +17,10 @@ CP turns these events into (a) the **confirmation/cancellation email** (`CP-MONE
 ### Event types
 | eventType | Emitted when | Triggered by |
 |---|---|---|
-| `BOOKING_CONFIRMED` | Receptionist approves | PP frontend |
+| `BOOKING_CONFIRMED` | After receptionist approval and, for escrow, the first transfer attempt | PP frontend |
 | `BOOKING_CANCELLED` | Customer (PP-OP-09) or receptionist cancels | PP-OP-09 / PP frontend |
-| `RETURN_PAYMENT_UPDATED` | The payout (Medium) or refund (Ultimo) changes status: `PENDING → SUCCEEDED/FAILED` | Payment gateway webhook to PP |
-| `ESCROW_RELEASE_UPDATED` | Escrow release changes status: `RELEASE_PENDING → RELEASED/RELEASE_FAILED` (Ultimo) | Gateway webhook to PP |
+| `RETURN_PAYMENT_UPDATED` | The payout (Medium) or refund (Ultimo) changes status: `PENDING -> SUCCEEDED/FAILED` | Payment gateway webhook to PP |
+| `ESCROW_RELEASE_UPDATED` | Escrow release result is known: `RELEASE_PENDING -> RELEASED/RELEASE_FAILED` (Ultimo) | PP records the verified Stripe transfer outcome |
 | `BOOKING_COMPLETED` | A confirmed stay's checkout date has passed (nightly job, 02:00 branch local time) | Scheduler |
 
 ### Payload
@@ -29,12 +29,14 @@ CP turns these events into (a) the **confirmation/cancellation email** (`CP-MONE
 | eventId | string (UUID) | yes | **CP de-duplicates on this** (delivery is at-least-once) |
 | eventType | string | yes | See above |
 | occurredAt | string | yes | UTC |
-| sequence | integer | yes | Increases per `bookingId`. CP ignores events with a lower sequence than the last one applied. |
+| sequence | integer | yes | Increases per `bookingId`. A lower sequence never replaces the current booking state. |
 | booking | BookingSummary | yes | Full current state, so CP never needs a follow-up call |
 | emailData | object | for `BOOKING_CONFIRMED` / `BOOKING_CANCELLED` | Content for CP's email: `{ bookingCode, providerName, branchName, branchAddress, branchPhone, roomName, checkInDate, checkOutDate, checkInTime, quantity, adults, children, total }` |
 | message | string | no | Short receptionist note shown to the customer, e.g. a rejection reason |
 
-At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recovery workflow after a released booking is cancelled. `booking.payment` preserves `releaseReference`, `transferReversalStatus`, `transferReversalReference` / `transferReversalFailureCause`, and the separate `returnPaymentStatus` / `returnPaymentReference`. A successful reversal is not a successful refund. See PP-05 for pending/failure transitions; the AsyncAPI examples include a completed reversal followed by a successful refund.
+For escrow, PP attempts the transfer before publishing `BOOKING_CONFIRMED`. The event reports `RELEASED`, `RELEASE_FAILED`, or `RELEASE_PENDING`. Publish `ESCROW_RELEASE_UPDATED` after the confirmation in booking sequence order. If cancellation wins before confirmation is queued, do not publish a confirmation or a late release update. Report the payment outcome through cancellation and return-payment events. CP sends one confirmation email per confirmation event. See [PP-05](PP-05-payment-flows.md#3-ultimo-escrow-stripe-sandbox-connect-separate-charges-and-transfers).
+
+`RETURN_PAYMENT_UPDATED` also carries transfer reversal changes after cancellation. Keep `releaseReference`, reversal status and reference or failure cause, and return status and reference separate. A successful reversal is not a successful customer refund.
 
 ### Example: confirmation (Ultimo escrow, funds released)
 ```json
@@ -58,7 +60,7 @@ At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recover
     "checkOutDate": "2027-04-13",
     "quantity": 2, "adults": 3, "children": 1,
     "priceBreakdown": { "nights": 3, "quantity": 2, "unitPricePerNight": { "amountMinor": 2500, "currency": "USD" }, "subtotal": { "amountMinor": 15000, "currency": "USD" }, "discount": { "discountPackageId": "d15c0a7e-0000-4000-8000-000000000015", "name": "Premium 15% Off", "type": "PERCENTAGE", "value": 15, "amount": { "amountMinor": 2250, "currency": "USD" } }, "total": { "amountMinor": 12750, "currency": "USD" } },
-    "payment": { "mode": "ESCROW", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED", "releaseReference": "tr_1QXyzTEST0001", "returnPaymentStatus": "NOT_REQUIRED" },
+    "payment": { "mode": "ESCROW", "orderId": "55aa66bb-0000-4000-8000-000000000701", "originalPaymentReference": "pi_3QAbCdTEST0001", "escrowStatus": "RELEASED", "releaseReference": "tr_1QXyzTEST0001", "returnPaymentStatus": "NOT_REQUIRED" },
     "createdAt": "2026-12-01T03:02:12Z",
     "updatedAt": "2026-12-01T09:15:40Z"
   },
@@ -77,6 +79,8 @@ At Ultimo, `RETURN_PAYMENT_UPDATED` also carries changes to the transfer-recover
   }
 }
 ```
+
+The [AsyncAPI examples](../specs/asyncapi/roomscanner-kafka.yaml) show `escrowReleased` after this confirmation. `escrowReleaseFailedAlternative` shows a failure in a separate run, not a change from `RELEASED` to `RELEASE_FAILED`.
 
 ### Example: cancelled by the receptionist, Medium payout pending, then failed
 ```json
@@ -150,6 +154,12 @@ The `booking` object is abridged here; see the full example above.
 | Guarantee | At-least-once | At-least-once (`acks=all`, idempotent producer) |
 | Retry by PP | 6 attempts: 1 s, 5 s, 30 s, 2 min, 10 min, 1 h. Each event is written to a PP **outbox** table first (transactional outbox). | Outbox relay publishes. The broker handles redelivery. |
 | Success criterion | CP returns `2xx` within 5 s | Offset committed by CP after processing |
-| Ordering | `sequence` per booking | Partition key `bookingId` + `sequence` |
+| Ordering | Send in `sequence` order per booking. Wait for CP's `2xx` before sending the next event. | Send in `sequence` order per booking. Wait for Kafka's acknowledgement before sending the next event. |
 | Duplicates | CP ignores a repeated `eventId` (`200` with `"duplicate": true`) | CP ignores a repeated `eventId` |
 | Give-up | After the last attempt: marked `UNDELIVERED`, shown on the PP admin screen, re-sendable manually | DLQ `rs.booking.events.v1.dlq` |
+
+The relay claims only the earliest unacknowledged event for each `bookingId`. A second worker cannot skip a claimed event to send a later one. If an acknowledgement is lost, retry the same `eventId` before advancing. A failed send leaves later events for that booking queued until the earlier one is delivered. Kafka's partition key preserves send order. It does not sort events by `sequence`.
+
+CP saves the applied state and queues the confirmation email before acknowledging a webhook or committing a Kafka offset. If the relay loses the acknowledgement for confirmation event 2, it retries event 2 before sending release update 3. CP queues the confirmation email only once for that `eventId`.
+
+If a confirmation lands in the Kafka dead-letter topic and is later replayed, do not roll back a newer booking snapshot. If the booking is still `CONFIRMED` and no email was queued for that `eventId`, queue it once. If the booking is cancelled, do not send a stale confirmation.

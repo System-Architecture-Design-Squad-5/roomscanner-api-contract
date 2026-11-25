@@ -1,5 +1,7 @@
 # RoomScanner Squad API Contract
 
+**Start here:** [Shared conventions](common/01-conventions.md) | [Kafka rules](common/04-kafka.md) | [Cross-squad PMS draft](pms/PMS-cross-ecosystem-draft.md) (pending partner agreement)
+
 | Document control | |
 |---|---|
 | Contract version | 1.0.0 |
@@ -11,33 +13,41 @@
 | Customer Portal team | `Team 10` |
 | Repository | `https://github.com/System-Architecture-Design-Squad-5/roomscanner-api-contract` |
 
-This repository is the single source of truth for every interaction between the two RoomScanner subsystems:
+This contract covers the APIs between Provider Portal (PP) and Customer Portal (CP). See the [operation index](#3-operation-index) and [ownership table](#4-ownership-boundaries-who-is-authoritative).
 
-- **Provider Portal (PP)** (*frontend Ultimo, headless components*; *backend Ultimo, microservices*, `BE-U01`–`BE-U09`): the authoritative owner of providers, branches, rooms, availability, discount policies, reservations/bookings and beneficiary-side payment outcomes.
-- **Customer Portal (CP)** (*frontend Ultimo, headless components*; *backend Medium, modular monolith*, `BE-M01`–`BE-M08`): the authoritative owner of customers, Premium membership, regional events and favorites, reviews and rating statistics, and payer-side payment initiation.
+**Chosen architecture levels**
 
-The contract is published in two equivalent forms:
-
-| Form | Files | Purpose |
+| Portal | Frontend | Backend |
 |---|---|---|
-| Human-readable specification | `common/`, `provider-portal/`, `customer-portal/`, `pms/` | Business rules, agreed decisions, field tables, examples and rationale |
-| Machine-readable specification | `specs/openapi/*.yaml` (OpenAPI 3.0.3), `specs/asyncapi/roomscanner-kafka.yaml` (AsyncAPI 3.0.0) | Industry-standard definitions for REST and Kafka. Open in Swagger Editor, Redoc or the AsyncAPI Studio; usable for client generation, mock servers and contract tests. |
+| Provider Portal (PP) | **Ultimo** - headless components (`FE-U01`, `FE-U02`) | **Ultimo** - microservices (`BE-U01`–`BE-U09`) |
+| Customer Portal (CP) | **Ultimo** - headless components (`FE-U01`, `FE-U02`) | **Medium** - modular monolith (`BE-M01`–`BE-M08`) |
 
-It satisfies **TW-S02, TW-S06, TW-M01 and TW-U04** of the Common Technical Requirements. Every operation documents its endpoint or channel, protocol, description, typed request/response fields and example JSON objects (Section 8 maps each requirement to its location).
+The CP and PP integration target is **Ultimo Kafka** for both portals.
+
+**Contract formats**
+
+| Format | Where to look | What it covers |
+|---|---|---|
+| Human-readable (Markdown) | [Shared rules](common/), [PP operations](provider-portal/), [CP operations](customer-portal/CP-services-required-by-PP.md) | Endpoints, topics, business rules, typed fields and JSON examples. Start here for design and review. |
+| Machine-readable (YAML) | [PP REST](specs/openapi/provider-portal-partner-api.yaml) and [CP REST](specs/openapi/customer-portal-partner-api.yaml) (OpenAPI 3.0.3); [Kafka](specs/asyncapi/roomscanner-kafka.yaml) (AsyncAPI 3.0.0) | Schemas and examples for validation, client generation and mocks. |
+
+See [requirement coverage](#8-requirement-coverage) for the mapping to `TW-S02`, `TW-S06`, `TW-M01`, `TW-U04` and the integration requirements.
+
+The cross-squad PMS draft has its own typed operations and examples. It is outside the binding CP-PP contract and generated specs until the squads sign a separate agreement.
 
 ---
 
 ## 1. How to read this contract
 
-Each **operation** (e.g. `PP-OP-06 CreateBooking`) is defined **once**, with one payload schema. The schema is then bound to the transport required by the integration level:
+The operation ID stays the same across its supported transports. Use the binding for the selected integration level:
 
 | Integration level | Transport used between PP and CP | Requirement |
 |---|---|---|
 | Simplex | REST (a standalone mock of the partner is allowed) | INT-S01, INT-S02 |
 | Medium | REST against the **real** partner, with partner authentication. WebSocket for event suggestions. | INT-M01 to M03, PP-EVENT-M01 |
-| **Ultimo** (target) | **Kafka request/response** with a send channel, a receive channel, a correlation ID and resend | INT-U01 to U03, BE-U09 |
+| **Ultimo** (target) | **Kafka request/response** with paired topics, correlation and retries; one-way topics for event publications | INT-U01 to U03 |
 
-Payload bodies are **identical across transports**, so moving up a level changes only the binding, never the data. This keeps the design consistent with the rule that "where a higher tier replaces an implementation, demonstrate the replacement rather than both versions".
+For operations with both bindings, Kafka combines REST path parameters, query parameters and any JSON body into one request payload. See the [Kafka envelope](common/04-kafka.md#1-message-envelope) for the response and error formats. At Ultimo, use Kafka wherever it replaces a lower-tier binding; there is no need to implement both.
 
 ## 2. Repository layout
 
@@ -48,16 +58,16 @@ roomscanner-api-contract/
 |-- common/
 |   |-- 01-conventions.md              base URLs, authentication, headers, errors, pagination, rate limits
 |   |-- 02-shared-types.md             enumerations and reusable objects (Money, ProviderSearchResult, ...)
-|   |-- 03-agreed-decisions.md         resolved SRS ambiguities and business rules (D-01 to D-17)
+|   |-- 03-agreed-decisions.md         business rules and open SRS questions (D-01 to D-17)
 |   `-- 04-kafka.md                    envelope, topic catalogue, correlation, resend policy, ACLs
-|-- provider-portal/                   services PP PROVIDES to CP
+|-- provider-portal/                   services PP provides to CP
 |   |-- PP-01-search-and-catalogue.md
 |   |-- PP-02-pricing-and-discounts.md
 |   |-- PP-03-bookings.md
 |   |-- PP-04-booking-status-events.md
 |   |-- PP-05-payment-flows.md
 |   `-- PP-06-regional-event-suggestions.md
-|-- customer-portal/                   services CP PROVIDES to PP (confirmed by CP)
+|-- customer-portal/                   services CP provides to PP
 |   |-- CP-services-required-by-PP.md    index of CP partner operations
 |   |-- CP-01-rating-statistics.md       CP-OP-01 GetRatingStatistics
 |   |-- CP-02-customer-membership.md     CP-OP-02 GetCustomerMembership
@@ -79,28 +89,14 @@ roomscanner-api-contract/
 
 ### 2.1 Viewing and validating the machine-readable specification
 
-| Task | How |
-|---|---|
-| Browse the REST APIs | Paste a file from `specs/openapi/` into https://editor.swagger.io, or run `npx @redocly/cli preview-docs specs/openapi/provider-portal-partner-api.yaml` |
-| Browse the Kafka API | Paste `specs/asyncapi/roomscanner-kafka.yaml` into https://studio.asyncapi.com |
-| Regenerate after a schema change | `python -m pip install -r tools/requirements-validation.txt`, then `python tools/generate_specs.py .` |
-| Validate | OpenAPI: `openapi-spec-validator` or `redocly lint`. AsyncAPI: `asyncapi validate`. Every example in the three files has been checked against its schema. |
-
-For the repository's repeatable checks, run:
+Browse the REST specs in [Swagger Editor](https://editor.swagger.io) and the Kafka spec in [AsyncAPI Studio](https://studio.asyncapi.com). To run the contract checks (Python 3.9 or newer):
 
 ```sh
 python -m pip install -r tools/requirements-validation.txt
-python tools/generate_specs.py .
 python tools/validate_specs.py
 ```
 
-The checks cover both OpenAPI documents, all embedded machine-readable examples, complete Markdown Kafka examples, JSON syntax, example price arithmetic, malformed Kafka/payment/event payloads, request/response correlation, retry budgets, custom bearer authentication, CP-order reconciliation and generator/spec consistency. Use Python 3.9 or newer. AsyncAPI document structure is a separate check (`asyncapi validate specs/asyncapi/roomscanner-kafka.yaml`); the Python suite validates its payloads and examples. This validates the contract; runtime duplicate protection, transactions, gateway access and failover still require implementation tests in the portal repositories.
-
-The corrections recorded under **Unreleased** in `CHANGELOG.md` revise the unsigned v1.0.0 draft. Required trace/idempotency fields and stricter validation must be reviewed by both teams before the baseline is signed/tagged; these edits do not constitute team sign-off or a deployed API migration.
-
-The 24 November review used `ProviderPortalSRS_v1.0.pdf`, `CustomerPortalSRS_v1.0.pdf`, `CommonRequirements_v1.0.pdf`, and the supplied `Lecturer_Answers_Project_Discussion.md` (23 November answers, last read 24 November). CP's Ultimo frontend + Medium modular monolith backend and PP's Ultimo frontend + microservices backend are compatible with independent architecture levels and Ultimo Kafka integration. This repository specifies partner APIs; it does not verify either frontend implementation or either backend's runtime behavior.
-
-Remaining agreement points are the separate cross-squad PMS contract (typed messages, payments, shared review retrieval, storage and ownership), escrow selection given the conflicting SRS wording, and the two-month example's extra day. The existing lecturer-confirmation markers for amenities/search semantics, payment-return wording and SRS errata also remain in D-02, D-03, D-13 and D-17; the audit does not turn those interpretations into lecturer approval. The PMS draft now proposes direct CP and PP connections, as the lecturer's all-four-teams clarification requires. Existing D-01 to D-17 agreement labels record the earlier baseline review; they do not sign off these audit corrections.
+The script checks OpenAPI structure, payloads, examples and whether the specs match the generator. After changing a schema, run `python tools/generate_specs.py .` and rerun the checks. Use `asyncapi validate specs/asyncapi/roomscanner-kafka.yaml` separately to check AsyncAPI document structure. Gateway access, duplicate writes and failover need tests in the portal repositories.
 
 ## 3. Operation index
 
@@ -147,7 +143,7 @@ Remaining agreement points are the separate cross-squad PMS contract (typed mess
 
 ## 5. Change process
 
-1. Every change goes through a **pull request** to `main` and needs **one reviewer from each team** (this satisfies TW-M02 evidence).
+1. Open a **pull request** to `main` with **one reviewer from each team**. Record how you addressed their feedback (`TW-M02`).
 2. Bump the contract version: **MAJOR** for breaking changes (and a new `/v2` path or `.v2` topic), **MINOR** for new optional fields or operations, **PATCH** for wording.
 3. Record every change in `CHANGELOG.md`, with the GitHub issue/task number.
 4. Breaking changes inside 7 days of a milestone deadline need both team leads to approve them.
@@ -165,10 +161,12 @@ Track this contract as a **separate task** in the *Documentation* column (Common
 
 ## 7. Sign-off
 
-The contract is binding for Milestone 1 once both teams have signed off below. Decisions marked "Lecturer confirmation" in `common/03-agreed-decisions.md` remain open points and do not block sign-off.
+Both teams must sign off on the revised Milestone 1 draft. The earlier review does not approve the [unreleased changes](CHANGELOG.md), including the required trace and idempotency fields. Items marked “Lecturer confirmation” in the [decisions log](common/03-agreed-decisions.md) remain open but do not block sign-off on the CP↔PP draft.
+
+The open decisions include escrow scope (D-07), the two-month event notification cutoff (D-12), and the other lecturer-confirmation items listed in the decisions log. The cross-squad PMS agreement has its own review.
 
 **Points each team confirms by signing:**
-1. **Integration level.** Both teams implement the **Ultimo Kafka binding** of every CP↔PP operation (CP-MONEY-U01, CP-RATING-U01, CP-EVENT-U01 to U03 ↔ PP-SEARCH-U02, PP-RATING-U01, PP-EVENT-U01/U02), independent of each team's backend architecture (D-01).
+1. **Integration level.** Both teams use the **Ultimo Kafka bindings** in the operation index, regardless of backend architecture ([D-01](common/03-agreed-decisions.md#d-01-target-integration-level-and-transports)).
 2. **Payment compensation (D-14).** At Medium (`DIRECT`) PP refunds a terminally rejected, unbound capture; at Ultimo (`ESCROW`) CP refunds its own platform charge.
 3. **CP module names** used in this contract (`MembershipModule`, `EventModule`, `RatingModule`, `BookingModule`, `SearchModule`, `PartnerIntegrationModule`) match CP's C4 component diagrams (ARCH-D06).
 
@@ -183,19 +181,17 @@ The contract is binding for Milestone 1 once both teams have signed off below. D
 
 ### 8.1 Contract documentation requirements (Common Technical Requirements)
 
-| Requirement | What it asks for | Where it is met |
-|---|---|---|
-| TW-S02 | API contract in the squad's GitHub organization | This repository (separate repository, Section 2) |
-| TW-S06 | Endpoint, protocol, brief description, abstract request/response for every API supplied to the partner, by Friday of Week N-2 | Section 3 index; every operation section in `provider-portal/` and `customer-portal/` |
-| TW-M01 | JSON request and response structures with fields and data types | Field tables in every operation; `common/02-shared-types.md`; `specs/` schemas |
-| TW-U04 | Example JSON objects for every endpoint | Example blocks in every operation; `examples` in `specs/openapi/*.yaml` and the AsyncAPI messages |
-| TW-M02 | Reviewer assigned alongside the owner; feedback addressed | Section 5 change process; PR reviews (one reviewer from each team) |
-| INT-S01, INT-S02 | Backend APIs for the partner; mocks allowed at Simplex | REST bindings of every operation |
-| INT-M01, INT-M02 | Real partner REST in both directions | Section 3.1 (PP provides) and Section 3.2 (CP provides) |
-| INT-M03 | Authenticate and authorize partner APIs; reject untrusted systems | `common/01-conventions.md` Section 4 (client credentials, scopes, webhook HMAC, IP allowlist) |
-| INT-U01 to INT-U03 | Kafka request/response, send and receive channel, correlation, resend | `common/04-kafka.md` Sections 1 to 4; `specs/asyncapi/roomscanner-kafka.yaml` |
-| BE-U04 | Rate limit: scope, threshold, window, response | `common/01-conventions.md` Section 7 |
-| BE-U09 | Cross-ecosystem communication through the PMS over a message broker | `pms/PMS-cross-ecosystem-draft.md` |
+| Requirement | Evidence |
+|---|---|
+| `TW-S02` | This separate contract repository in the squad's GitHub organization. |
+| `TW-S06` | [Operation index](#3-operation-index) and operation pages: endpoints, protocols, descriptions and request/response outlines. Check GitHub history for publication by Friday of Week N−2. |
+| `TW-M01`, `TW-U04` | Typed request/response fields and JSON examples in the operation pages and generated specs. |
+| `TW-M02` | Review task and PR: owner and reviewer assignments, plus how feedback was addressed. See the [change process](#5-change-process). |
+| `INT-S01`–`INT-S02`, `INT-M01`–`INT-M02` | [REST bindings](#3-operation-index) for both directions: mocks allowed at Simplex; actual partner at Medium. |
+| `INT-M03` | [Partner authentication](common/01-conventions.md#4-partner-authentication-and-authorization-int-m03): credentials, scopes and rejection of untrusted callers. |
+| `INT-U01`–`INT-U03` | [Kafka rules](common/04-kafka.md) and [AsyncAPI](specs/asyncapi/roomscanner-kafka.yaml): paired topics, correlation and retries. |
+| `BE-U04` | [Rate limits](common/01-conventions.md#7-rate-limits): scope, threshold, window and response. |
+| `BE-U09`, `DEP-U05` | [PMS draft](pms/PMS-cross-ecosystem-draft.md): broker-based cross-squad exchange, typed operations, Machine 5 and untrusted-system rejection. Partner agreement pending. |
 
 ### 8.2 Functional exchanges (SRS Section 3 of both subsystems)
 

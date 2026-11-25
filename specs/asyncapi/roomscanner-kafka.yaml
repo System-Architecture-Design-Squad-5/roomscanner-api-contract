@@ -1973,6 +1973,7 @@ components:
                   currency: USD
               payment:
                 mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
                 originalPaymentReference: pi_3QAbCdTEST0001
                 escrowStatus: RELEASED
                 releaseReference: tr_1QXyzTEST0001
@@ -2276,6 +2277,7 @@ components:
                   currency: USD
               payment:
                 mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
                 originalPaymentReference: pi_3QAbCdTEST0001
                 escrowStatus: RELEASED
                 releaseReference: tr_1QXyzTEST0001
@@ -2489,12 +2491,72 @@ components:
                   currency: USD
               payment:
                 mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
                 originalPaymentReference: pi_3QAbCdTEST0001
                 escrowStatus: RELEASED
                 releaseReference: tr_1QXyzTEST0001
                 returnPaymentStatus: NOT_REQUIRED
               createdAt: '2026-12-01T03:02:12Z'
-              updatedAt: '2026-12-01T09:15:40Z'
+              updatedAt: '2026-12-01T09:15:45Z'
+      - name: escrowReleaseFailedAlternative
+        payload:
+          messageId: 11112222-0000-4000-8000-0000000000e9
+          correlationId: 8c9d0e1f-0000-4000-8000-000000000801
+          traceId: 7ace0000-0000-4000-8000-000000000001
+          type: ESCROW_RELEASE_UPDATED
+          schemaVersion: '1.0'
+          source: PP
+          timestamp: '2026-12-01T09:15:45Z'
+          payload:
+            eventId: 11112222-0000-4000-8000-000000000009
+            eventType: ESCROW_RELEASE_UPDATED
+            occurredAt: '2026-12-01T09:15:45Z'
+            sequence: 3
+            booking:
+              bookingId: 8c9d0e1f-0000-4000-8000-000000000801
+              bookingCode: RS-VN-24F7Q
+              status: CONFIRMED
+              customerId: 7d1e2f30-0000-4000-8000-000000000901
+              providerId: 5b1c2d3e-0000-4000-8000-000000000150
+              branchId: 9a8b7c6d-0000-4000-8000-000000000250
+              roomId: 3f2e1d0c-0000-4000-8000-000000000301
+              providerName: Thu Bon Family Stays
+              branchName: Riverside Homestay Hoi An
+              roomName: Garden Single Room
+              checkInDate: '2027-04-10'
+              checkOutDate: '2027-04-13'
+              quantity: 2
+              adults: 3
+              children: 1
+              priceBreakdown:
+                nights: 3
+                quantity: 2
+                unitPricePerNight:
+                  amountMinor: 2500
+                  currency: USD
+                subtotal:
+                  amountMinor: 15000
+                  currency: USD
+                discount:
+                  discountPackageId: d15c0a7e-0000-4000-8000-000000000015
+                  name: Premium 15% Off
+                  type: PERCENTAGE
+                  value: 15
+                  amount:
+                    amountMinor: 2250
+                    currency: USD
+                total:
+                  amountMinor: 12750
+                  currency: USD
+              payment:
+                mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
+                originalPaymentReference: pi_3QAbCdTEST0001
+                escrowStatus: RELEASE_FAILED
+                returnPaymentStatus: NOT_REQUIRED
+                failureCause: The connected account cannot receive transfers.
+              createdAt: '2026-12-01T03:02:12Z'
+              updatedAt: '2026-12-01T09:15:45Z'
       - name: completed
         payload:
           messageId: 11112222-0000-4000-8000-0000000000e7
@@ -2547,6 +2609,7 @@ components:
                   currency: USD
               payment:
                 mode: ESCROW
+                orderId: 55aa66bb-0000-4000-8000-000000000701
                 originalPaymentReference: pi_3QAbCdTEST0001
                 escrowStatus: RELEASED
                 releaseReference: tr_1QXyzTEST0001
@@ -4418,11 +4481,12 @@ components:
               description: 'CreateBooking only: CP must refund a payment it already captured (Ultimo ESCROW, Decision D-14)'
             refundIssuedByBeneficiary:
               type: boolean
-              description: 'CreateBooking only, Medium DIRECT: PP refunded the unbound capture from the provider''s merchant
-                account (Decision D-14)'
+              description: 'CreateBooking only, Medium DIRECT: PP has a refund reference for the unbound capture. Read returnPaymentStatus
+                for the outcome (Decision D-14).'
             returnPaymentReference:
               type: string
               description: 'With refundIssuedByBeneficiary=true: the gateway refund ID'
+              pattern: \S
             returnPaymentStatus:
               $ref: '#/components/schemas/ReturnPaymentStatus'
             availableQuantity:
@@ -4441,21 +4505,61 @@ components:
           - message
           - requestId
           - timestamp
-          anyOf:
-          - not:
+          allOf:
+          - anyOf:
+            - type: object
+              properties:
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+              not:
+                anyOf:
+                - required:
+                  - returnPaymentReference
+                - required:
+                  - returnPaymentStatus
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - true
+                returnPaymentStatus:
+                  enum:
+                  - PENDING
+                  - SUCCEEDED
+                  - FAILED
               required:
+              - refundRequiredByPayer
               - refundIssuedByBeneficiary
-          - properties:
-              refundIssuedByBeneficiary:
-                enum:
-                - false
-          - properties:
-              refundRequiredByPayer:
-                enum:
-                - false
-            required:
-            - returnPaymentReference
-            - returnPaymentStatus
+              - returnPaymentReference
+              - returnPaymentStatus
+          - anyOf:
+            - type: object
+              properties:
+                refundRequiredByPayer:
+                  enum:
+                  - false
+                refundIssuedByBeneficiary:
+                  enum:
+                  - false
+            - type: object
+              properties:
+                code:
+                  enum:
+                  - QUOTE_EXPIRED
+                  - QUOTE_MISMATCH
+                  - MEMBERSHIP_ELIGIBILITY_CHANGED
+                  - INSUFFICIENT_AVAILABILITY
+                  - BOOKING_QUANTITY_EXCEEDS_GUESTS
+                  - OCCUPANCY_EXCEEDED
+                  - PAYMENT_AMOUNT_MISMATCH
+                httpStatus:
+                  enum:
+                  - 409
+                  - 422
       required:
       - error
     Comment:
@@ -5037,11 +5141,52 @@ components:
               status:
                 enum:
                 - COMPLETED
-      - properties:
+      - type: object
+        properties:
           eventType:
             enum:
             - RETURN_PAYMENT_UPDATED
+      - type: object
+        properties:
+          eventType:
+            enum:
             - ESCROW_RELEASE_UPDATED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - RELEASED
+                    - RELEASE_FAILED
+        not:
+          anyOf:
+          - required:
+            - emailData
+      not:
+        type: object
+        properties:
+          eventType:
+            enum:
+            - BOOKING_CONFIRMED
+          booking:
+            type: object
+            properties:
+              payment:
+                type: object
+                properties:
+                  mode:
+                    enum:
+                    - ESCROW
+                  escrowStatus:
+                    enum:
+                    - HELD
+                    - REFUNDED
     StarDistribution:
       type: object
       description: Count of reviews per star value.
